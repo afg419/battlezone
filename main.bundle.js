@@ -49,16 +49,15 @@
 	var P5 = __webpack_require__(1);
 	var Dimensions = __webpack_require__(2);
 	var DisplayGame = __webpack_require__(3);
-	var NewGame = __webpack_require__(22);
-	var EndGame = __webpack_require__(24);
-	var HelpGame = __webpack_require__(25);
+	var NewGame = __webpack_require__(23);
+	var EndGame = __webpack_require__(25);
+	var HelpGame = __webpack_require__(26);
 	var s = function s(sketch) {
 	  var height = Dimensions.height;
 	  var width = Dimensions.width;
 	  var inGame = { state: 2, level: 0, scores: [], end_status: "" };
 
 	  sketch.setup = function () {
-	    // localStorage.setItem('scores', JSON.stringify(""));
 	    sketch.frameRate(20);
 	    sketch.createCanvas(height, width);
 	  };
@@ -12825,17 +12824,14 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var Vector = __webpack_require__(4);
-	var Player = __webpack_require__(5);
-	var Game = __webpack_require__(13);
-	var Cockpit = __webpack_require__(21);
+	var Game = __webpack_require__(4);
+	var Cockpit = __webpack_require__(22);
 
 	var DisplayGame = (function () {
 	  function DisplayGame(sketch, gameLoop, inGame, width, height) {
 	    _classCallCheck(this, DisplayGame);
 
-	    var player = new Player(new Vector(0, 0, 0), new Vector(1, 0, 0), 5, 45, 35, 10);
-	    this.game = new Game(player, inGame.level, sketch);
+	    this.game = new Game(inGame.level, sketch);
 	    this.sketch = sketch;
 	    this.gameLoop = gameLoop;
 	    this.inGame = inGame;
@@ -12849,9 +12845,9 @@
 	    key: 'setEndGameStatus',
 	    value: function setEndGameStatus() {
 	      if (this.game.win) {
-	        this.inGame.end_status = "You Won!";
+	        this.inGame.end_status = "You collected all booty in this area!";
 	      } else {
-	        this.inGame.end_status = "Sorry, you died.";
+	        this.inGame.end_status = "Your ship has been destroyed!";
 	      }
 	    }
 	  }, {
@@ -12870,12 +12866,12 @@
 	          if (scores === null) {
 	            scores = [];
 	          }
-	          // debugger
+
 	          var result = "Loss";
 	          if (this.game.win) {
 	            result = "Win";
 	          }
-	          // debugger
+
 	          scores.push({ result: result, level: this.inGame.level, wealth: game.player.wealth, time: this.timer });
 	          localStorage.setItem('scores', JSON.stringify(scores));
 
@@ -12900,6 +12896,390 @@
 
 /***/ },
 /* 4 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var PlayerControls = __webpack_require__(5);
+	var LevelLibrary = __webpack_require__(6);
+	var StarBuilder = __webpack_require__(21);
+
+	var Game = (function () {
+	  function Game(level, sketch) {
+	    _classCallCheck(this, Game);
+
+	    this.level = new LevelLibrary().level(level);
+	    this.player = this.level.player; //new Player(new Vector(0,0,0), new Vector(1,0,0), 5, 45, 35, 10);
+	    this.bullets = [];
+	    this.playerControls = new PlayerControls(this.player, this.level.booty, this.bullets);
+	    this.sketch = sketch;
+	    if (level === 0) {
+	      this.player.alert = "Press 'w' to move forward.\nHit purple boxes for in-game hints.";
+	    }
+	    this.starBuilder = new StarBuilder(750);
+	  }
+
+	  _createClass(Game, [{
+	    key: 'renderGame',
+	    value: function renderGame() {
+	      var _this = this;
+
+	      this.sketch.background(0, 0, 0);
+	      this.starBuilder.drawBackgroundRelativeTo(this.player, this.sketch);
+	      this.sketch.stroke(60, 60, 60);
+	      this.sketch.strokeWeight(1);
+
+	      this.renderableEntitiesOrderedByDistanceToPlayer.forEach(function (entity) {
+	        entity.obstacle.sketchRelativeTo(_this.player, _this.sketch);
+	      });
+	    }
+	  }, {
+	    key: 'updateCollisionState',
+	    value: function updateCollisionState() {
+	      var _this2 = this;
+
+	      this.solidEntities.forEach(function (solidEntity) {
+	        if (solidEntity.inCollisionWith(_this2.player)) {
+	          solidEntity.detonate(_this2.player);
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'updateMessageState',
+	    value: function updateMessageState() {
+	      var _this3 = this;
+
+	      this.level.messages.forEach(function (message) {
+	        if (message.inMessageRange(_this3.player)) {
+	          message.inform(_this3.player);
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'updateTurretState',
+	    value: function updateTurretState() {
+	      var _this4 = this;
+
+	      this.level.turrets.forEach(function (turret, index, turretArray) {
+	        turret.timer++;
+	        if (turret.inFireRange(_this4.player) && turret.timer > 15) {
+	          turret.fire(_this4.player, _this4.bullets);
+	        }
+	        if (turret.destroyed()) {
+	          turretArray.splice(index, 1);
+	          _this4.level.turrets = turretArray;
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'updateFighterState',
+	    value: function updateFighterState() {
+	      var _this5 = this;
+
+	      this.level.fighters.forEach(function (fighter, index, fighterArray) {
+	        fighter.timer++;
+
+	        if (fighter.inFireRange(_this5.player) && fighter.timer > 2) {
+	          fighter.fire(_this5.player, _this5.bullets);
+	        } else {
+	          fighter.chase(_this5.player);
+	        }
+
+	        if (fighter.inCollisionWithAny(_this5.level.mines)) {
+	          fighter.detonateSelf();
+	        }
+
+	        if (fighter.destroyed()) {
+	          fighterArray.splice(index, 1);
+	          _this5.level.fighters = fighterArray;
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'updateBootyState',
+	    value: function updateBootyState() {
+	      var _this6 = this;
+
+	      this.level.booty.forEach(function (boot, index, bootyArray) {
+	        if (boot.inCollectionRange(_this6.player) || boot.destroyed()) {
+	          boot.increaseWealth(_this6.player);
+	          bootyArray.splice(index, 1);
+	          _this6.level.booty = bootyArray;
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'updateBulletState',
+	    value: function updateBulletState() {
+	      var _this7 = this;
+
+	      this.bullets.forEach(function (bullet, index, bulletArray) {
+	        bullet.fly();
+	        if (bullet.outOfRange()) {
+	          bulletArray.splice(index, 1);
+	          _this7.bullets = bulletArray;
+	        } else {
+	          _this7.shootableEntities.forEach(function (shootable) {
+	            if (bullet.hits(shootable)) {
+	              bullet.dealDamageTo(shootable);
+	              bulletArray.splice(index, 1);
+	              _this7.bullets = bulletArray;
+	            }
+	          });
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'updateGameState',
+	    value: function updateGameState() {
+	      this.updateBootyState();
+	      this.updateBulletState();
+	      this.updateTurretState();
+	      this.updateCollisionState();
+	      this.updateMessageState();
+	      this.updateFighterState();
+	      this.playerControls.control(this.sketch);
+	    }
+	  }, {
+	    key: 'shootableEntities',
+	    get: function get() {
+	      return this.level.mines.concat(this.level.booty).concat([this.player]).concat(this.level.turrets).concat(this.level.mothership).concat(this.level.fighters);
+	    }
+	  }, {
+	    key: 'solidEntities',
+	    get: function get() {
+	      return this.level.mines.concat(this.level.turrets).concat(this.level.mothership).concat(this.level.fighters);
+	    }
+	  }, {
+	    key: 'renderableEntities',
+	    get: function get() {
+	      return this.level.mines.concat(this.level.booty).concat(this.bullets).concat(this.level.turrets).concat(this.level.mothership).concat(this.level.messages).concat(this.level.fighters).filter(function (entity) {
+	        return entity !== undefined;
+	      });
+	    }
+	  }, {
+	    key: 'renderableEntitiesOrderedByDistanceToPlayer',
+	    get: function get() {
+	      return this.renderableEntities.sort((function (e1, e2) {
+	        return e2.obstacle.distanceTo(this.player) - e1.obstacle.distanceTo(this.player);
+	      }).bind(this));
+	    }
+	  }, {
+	    key: 'win',
+	    get: function get() {
+	      return this.level.booty.length === 0 && this.level.fighters.length === 0;
+	    }
+	  }]);
+
+	  return Game;
+	})();
+
+	module.exports = Game;
+
+/***/ },
+/* 5 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var PlayerControls = (function () {
+	  function PlayerControls(player, booty, bullets) {
+	    _classCallCheck(this, PlayerControls);
+
+	    this.player = player;
+	    this.booty = booty;
+	    this.dict = {
+	      w: 87,
+	      a: 65,
+	      d: 68,
+	      s: 83,
+	      f: 70,
+	      o: 79,
+	      l: 76,
+	      k: 75,
+	      j: 74,
+	      g: 71,
+	      ";": 186,
+	      "shift": 16,
+	      "space": 32
+	    };
+	    this.bullets = bullets;
+	    this.timer = 0;
+	  }
+
+	  _createClass(PlayerControls, [{
+	    key: "control",
+	    value: function control(sketch) {
+	      if (sketch.keyIsDown(this.dict["w"])) {
+	        this.player.moveForward();
+	      }
+	      if (sketch.keyIsDown(this.dict["s"])) {
+	        this.player.moveBackward();
+	      }
+	      if (sketch.keyIsDown(this.dict["a"])) {
+	        this.player.rotateOnV(-0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict["d"])) {
+	        this.player.rotateOnV(0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict["l"])) {
+	        this.player.rotateOnU(-0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict["o"])) {
+	        this.player.rotateOnU(0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict["k"])) {
+	        this.player.rotateOnHead(0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict[";"])) {
+	        this.player.rotateOnHead(-0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict["shift"])) {
+	        this.player.momentum = this.player.momentum.scaledBy(14 / 15);
+	      }
+	      if (sketch.keyIsDown(this.dict["j"])) {
+	        this.player.rotateTowardsClosestEntity(this.booty, 0.05);
+	      }
+	      if (sketch.keyIsDown(this.dict["f"])) {
+	        this.player.rotateTowardsMomentum(0.1);
+	      }
+	      //kills player
+	      if (sketch.keyIsDown(this.dict["g"])) {
+	        this.player.health = 0;
+	      }
+	      if (sketch.keyIsDown(this.dict["space"])) {
+	        if (this.timer > this.player.rate) {
+	          this.player.fire(this.bullets);
+	          this.timer = 0;
+	        }
+	      }
+
+	      this.player.updateVecs();
+	      this.timer++;
+	    }
+	  }]);
+
+	  return PlayerControls;
+	})();
+
+	module.exports = PlayerControls;
+
+/***/ },
+/* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var Vector = __webpack_require__(7);
+	var Mine = __webpack_require__(8);
+	var Booty = __webpack_require__(15);
+	var Turret = __webpack_require__(16);
+	var Fighter = __webpack_require__(18);
+	var Player = __webpack_require__(19);
+	// const Mothership = require('./mothership');
+	var Message = __webpack_require__(20);
+
+	var LevelLibrary = (function () {
+	  function LevelLibrary() {
+	    _classCallCheck(this, LevelLibrary);
+	  }
+
+	  _createClass(LevelLibrary, [{
+	    key: 'level',
+	    value: function level(id) {
+	      switch (id) {
+	        case 0:
+	          return this.level0;
+	        case 1:
+	          return this.level1;
+	        case 2:
+	          return this.level2;
+	        case 3:
+	          return this.level3;
+	      }
+	    }
+	  }, {
+	    key: 'randomEntity',
+	    value: function randomEntity(distance, width, EntityClass) {
+	      var r = 2 * Math.random() + 0.25;
+	      var x = 2 * Math.random() - 1;
+	      var y = 2 * Math.random() - 1;
+	      var z = 2 * Math.random() - 1;
+	      var loc = new Vector(x, y, z).unit.scaledBy(r * distance);
+	      return new EntityClass(loc, 0, width, 200);
+	    }
+	  }, {
+	    key: 'seedRandomEntities',
+	    value: function seedRandomEntities(distance, width, number, EntityClass) {
+	      var entities = [];
+	      for (var i = 0; i < number; i++) {
+	        entities.push(this.randomEntity(distance, width, EntityClass));
+	      }
+	      return entities;
+	    }
+	  }, {
+	    key: 'level0',
+	    get: function get() {
+	      var messages = [new Message(new Vector(300, 0, 0), 10, "Run into yellow boxes to collect wealth."), new Message(new Vector(1600, 0, 0), 8, "Press the 'Shift' key to slow down."), new Message(new Vector(2400, 0, 0), 12, "Pressing the 'D' key will rotate you to the right.\n'A' will rotate to the left."), new Message(new Vector(3300, 0, 0), 12, "The next yellow box is to your right.\nPress 'D' and then move toward it."), new Message(new Vector(5600, 2000, 0), 60, "Press the 'A' key to rotate to the next yellow box."), new Message(new Vector(7600, 2000, 0), 60, "Press the 'S' slow down and reverse.\nTry it.\nThen hit 'W' to move forward again\nto the next purple box."), new Message(new Vector(8600, 2000, 0), 60, "The 'O' and 'L' keys control pitch.\n 'L' will pull your craft up\n and 'O' will cause your craft to dive.\nFind the next HUGE message box.\n It is not far above you."), new Message(new Vector(9900, 2000, 1500), 100, "If you get lost, hold the 'J' key\n to turn your ship towards the nearest yellow box.\nTry it now. Then go get it.")];
+	      var mines = [];
+	      var booty = [new Booty(new Vector(600, 0, 0), 6, 8, 50), new Booty(new Vector(1200, 0, 0), 11, 20, 50), new Booty(new Vector(2000, 0, 0), 11, 20, 100), new Booty(new Vector(4600, 1000, 0), 55, 100, 100), new Booty(new Vector(6600, 2000, 0), 40, 75, 150), new Booty(new Vector(9900, 3500, 2900), 40, 75, 150)];
+	      var turrets = [];
+	      var player = new Player(new Vector(0, 0, 0), new Vector(1, 0, 0), 5, 45, 35, 10);
+	      return { player: player, mines: mines, booty: booty, turrets: turrets, mothership: [], messages: messages, fighters: [] };
+	    }
+	  }, {
+	    key: 'level1',
+	    get: function get() {
+	      var mines = [new Mine(new Vector(950, 1200, 50), 16, 30), new Mine(new Vector(1050, 1500, 150), 16, 30), new Mine(new Vector(1100, 1900, 350), 16, 30), new Mine(new Vector(1150, 2150, 700), 16, 30), new Mine(new Vector(1050, 2150, 700), 16, 30), new Mine(new Vector(1250, 2550, 1300), 16, 30), new Mine(new Vector(1250, 2750, 1200), 16, 30), new Mine(new Vector(1350, 2650, 1500), 16, 30), new Mine(new Vector(1800, 3050, 1800), 16, 30), new Mine(new Vector(1750, 3200, 2000), 26, 50), new Mine(new Vector(1750, 3150, 2200), 26, 50), new Mine(new Vector(1850, 3050, 2300), 26, 50), new Mine(new Vector(1500, 3100, 2500), 26, 50), new Mine(new Vector(1300, 3100, 2700), 26, 50), new Mine(new Vector(1250, 3100, 3000), 26, 50), new Mine(new Vector(1200, 3150, 3300), 26, 50), new Mine(new Vector(1200, 3100, 3500), 26, 50)];
+	      var booty = [new Booty(new Vector(150, 0, 0), 6, 10, 200), new Booty(new Vector(300, 0, 0), 6, 10, 200), new Booty(new Vector(450, 0, 0), 6, 10, 200), new Booty(new Vector(600, 30, 0), 11, 20, 100), new Booty(new Vector(800, 150, 0), 11, 20, 100), new Booty(new Vector(1000, 400, 0), 11, 20, 100), new Booty(new Vector(1000, 650, 0), 8, 15, 150), new Booty(new Vector(1000, 900, 0), 8, 15, 150), new Booty(new Vector(1000, 1200, 50), 22, 40, 100), new Booty(new Vector(1000, 1500, 150), 22, 40, 100), new Booty(new Vector(1000, 1700, 250), 11, 20, 100), new Booty(new Vector(1000, 1850, 350), 11, 20, 100), new Booty(new Vector(1000, 2000, 500), 11, 20, 100), new Booty(new Vector(1100, 2200, 700), 22, 40, 100), new Booty(new Vector(1200, 2400, 1000), 22, 40, 200), new Booty(new Vector(1400, 2700, 1300), 17, 30, 200), new Booty(new Vector(1700, 3000, 1700), 17, 30, 200), new Booty(new Vector(1800, 3100, 2000), 17, 30, 300), new Booty(new Vector(1700, 3100, 2200), 17, 30, 300), new Booty(new Vector(1600, 3100, 2500), 17, 30, 300), new Booty(new Vector(1400, 3100, 2700), 17, 30, 300), new Booty(new Vector(1400, 3100, 3100), 17, 30, 300), new Booty(new Vector(1200, 3100, 3400), 17, 30, 500), new Booty(new Vector(1000, 3100, 3600), 17, 30, 700), new Booty(new Vector(1100, 3400, 3700), 17, 30, 700), new Booty(new Vector(900, 3200, 3900), 17, 30, 700), new Booty(new Vector(900, 3300, 3800), 17, 30, 300)];
+
+	      var turrets = [new Turret(new Vector(1000, 3300, 3800), 40, 70)];
+	      var player = new Player(new Vector(0, 0, 0), new Vector(1, 0, 0), 5, 45, 35, 10);
+	      return { player: player, mines: mines, booty: booty, turrets: turrets, mothership: [], messages: [], fighters: [] };
+	    }
+	  }, {
+	    key: 'level2',
+	    get: function get() {
+	      var mines = this.seedRandomEntities(200, 40, 17, Mine);
+
+	      var booty = this.seedRandomEntities(200, 10, 12, Booty);
+
+	      var turrets = [new Turret(new Vector(425, 0, 0), 0, 30), new Turret(new Vector(-425, 0, 0), 0, 30), new Turret(new Vector(0, 425, 0), 0, 30), new Turret(new Vector(0, -425, 0), 0, 30), new Turret(new Vector(0, 0, 425), 0, 30), new Turret(new Vector(0, 0, -425), 0, 30)];
+
+	      var player = new Player(new Vector(0, 0, 0), new Vector(1, 0, 0), 5, 45, 35, 10);
+	      return { player: player, mines: mines, booty: booty, turrets: turrets, mothership: [], messages: [], fighters: [] };
+	    }
+	  }, {
+	    key: 'level3',
+	    get: function get() {
+	      var mines = this.seedRandomEntities(700, 60, 8, Mine);
+	      var booty = this.seedRandomEntities(500, 10, 6, Booty);
+	      var fighters = [new Fighter(new Vector(1500, 0, 0), 7, 40, 10, new Vector(75, 0, 0), new Vector(-1, 0, 0)), new Fighter(new Vector(-6500, 0, 0), 7, 40, 10, new Vector(0, 75, 0), new Vector(-1, 0, 0)), new Fighter(new Vector(0, 4500, 0), 7, 40, 10, new Vector(50, 50, 0), new Vector(-1, 0, 0))];
+
+	      var player = new Player(new Vector(0, 0, 0), new Vector(1, 0, 0), 5, 45, 35, 10, 2, 0.5);
+	      return { player: player, mines: mines, booty: booty, turrets: [], mothership: [], messages: [], fighters: fighters };
+	    }
+	  }]);
+
+	  return LevelLibrary;
+	})();
+
+	module.exports = LevelLibrary;
+
+/***/ },
+/* 7 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -12989,7 +13369,7 @@
 	module.exports = Vector;
 
 /***/ },
-/* 5 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -12998,13 +13378,756 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var Vector = __webpack_require__(4);
+	var CollisionBox = __webpack_require__(9);
+	var ObstacleBuilder = __webpack_require__(10);
+
+	var Mine = (function () {
+	  function Mine(loc, radius, width) {
+	    _classCallCheck(this, Mine);
+
+	    this.loc = loc;
+	    this.collSphere = new CollisionBox(loc, width);
+	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width);
+	    this.health = 5;
+	  }
+
+	  _createClass(Mine, [{
+	    key: 'inCollisionWith',
+	    value: function inCollisionWith(player) {
+	      return this.collSphere.generalCollisionDetected(player.collSphere);
+	    }
+	  }, {
+	    key: 'detonate',
+	    value: function detonate(player) {
+	      player.health = 0;
+	    }
+	  }]);
+
+	  return Mine;
+	})();
+
+	module.exports = Mine;
+
+/***/ },
+/* 9 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var CollisionBox = (function () {
+	  function CollisionBox(loc, width) {
+	    _classCallCheck(this, CollisionBox);
+
+	    this.loc = loc;
+	    this.width = width;
+	    this.cornerX = this.loc.x - this.width / 2;
+	    this.cornerY = this.loc.y - this.width / 2;
+	    this.cornerZ = this.loc.z - this.width / 2;
+	  }
+
+	  _createClass(CollisionBox, [{
+	    key: "generalCollisionDetected",
+	    value: function generalCollisionDetected(sphere) {
+	      var location = sphere.loc;
+	      var rad = sphere.width;
+	      var prop0 = this.cornerX < location.x + rad && location.x - rad < this.cornerX + this.width;
+	      var prop1 = this.cornerY < location.y + rad && location.y - rad < this.cornerY + this.width;
+	      var prop2 = this.cornerZ < location.z + rad && location.z - rad < this.cornerZ + this.width;
+	      return prop0 && prop1 && prop2;
+	    }
+	  }]);
+
+	  return CollisionBox;
+	})();
+
+	module.exports = CollisionBox;
+
+/***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var Vector = __webpack_require__(7);
+	var Point = __webpack_require__(11);
+	var Edge = __webpack_require__(12);
+	var Face = __webpack_require__(13);
+	var Obstacle = __webpack_require__(14);
+
+	var ObstacleBuilder = (function () {
+	  function ObstacleBuilder() {
+	    _classCallCheck(this, ObstacleBuilder);
+	  }
+
+	  _createClass(ObstacleBuilder, [{
+	    key: 'square',
+	    value: function square(corner, side1direction, side2direction, width, color) {
+	      var edges = [];
+	      var p0 = new Point(corner);
+	      var p1 = new Point(corner.plus(side1direction.scaledBy(width)));
+	      var p3 = new Point(corner.plus(side2direction.scaledBy(width)));
+	      var p2 = new Point(corner.plus(side2direction.scaledBy(width)).plus(side1direction.scaledBy(width)));
+
+	      edges[0] = new Edge(p0, p1);
+	      edges[1] = new Edge(p1, p2);
+	      edges[2] = new Edge(p2, p3);
+	      edges[3] = new Edge(p3, p0);
+
+	      var location = corner.plus(p2.loc.minus(corner).scaledBy(0.5));
+	      return new Face(edges, location, color);
+	    }
+	  }, {
+	    key: 'longRectSheet',
+	    value: function longRectSheet(corner, side1direction, side2direction, width, number, side, color) {
+	      var faces = [];
+	      var sideDir = ({ 1: side1direction, 2: side2direction })[side];
+	      for (var i = 0; i < number; i++) {
+	        faces.push(this.square(corner, side1direction, side2direction, width, color));
+	        corner = corner.plus(sideDir.scaledBy(width));
+	      }
+	      return faces;
+	    }
+	  }, {
+	    key: 'rectSheet',
+	    value: function rectSheet(corner, side1direction, side2direction, width, number1, number2, color) {
+	      var faces = [];
+	      for (var j = 0; j < number2; j++) {
+	        faces = faces.concat(this.longRectSheet(corner, side1direction, side2direction, width, number1, 1, color));
+	        corner = corner.plus(side2direction.scaledBy(width));
+	      }
+	      return faces;
+	    }
+	  }, {
+	    key: 'cubeObstacle',
+	    value: function cubeObstacle(loc, width) {
+	      var color = arguments.length <= 2 || arguments[2] === undefined ? [204, 0, 0] : arguments[2];
+
+	      var frontBottomLeft = loc.plus(new Vector(width / 2, -width / 2, -width / 2));
+	      var backTopRight = loc.plus(new Vector(-width / 2, width / 2, width / 2));
+	      var faces = [];
+	      faces[0] = this.square(frontBottomLeft, new Vector(0, 1, 0), new Vector(0, 0, 1), width, color);
+	      faces[1] = this.square(frontBottomLeft, new Vector(-1, 0, 0), new Vector(0, 0, 1), width, color);
+	      faces[2] = this.square(frontBottomLeft, new Vector(0, 1, 0), new Vector(-1, 0, 0), width, color);
+	      faces[3] = this.square(backTopRight, new Vector(0, 0, -1), new Vector(0, -1, 0), width, color);
+	      faces[4] = this.square(backTopRight, new Vector(1, 0, 0), new Vector(0, 0, -1), width, color);
+	      faces[5] = this.square(backTopRight, new Vector(0, -1, 0), new Vector(1, 0, 0), width, color);
+
+	      return new Obstacle(faces, loc);
+	    }
+	  }, {
+	    key: 'bulletObstacle',
+	    value: function bulletObstacle(loc, heading, u) {
+	      var bulletColor = [94, 236, 255];
+	      var faces = [];
+	      var edgeArrow1 = heading.scaledBy(7).plus(u.scaledBy(0.5));
+	      var edgeArrow2 = heading.scaledBy(7).plus(u.scaledBy(-0.5));
+	      faces[0] = this.square(loc, edgeArrow1, edgeArrow2, 2, bulletColor);
+
+	      return new Obstacle(faces, loc);
+	    }
+	  }]);
+
+	  return ObstacleBuilder;
+	})();
+
+	module.exports = ObstacleBuilder;
+
+/***/ },
+/* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var Vector = __webpack_require__(7);
 	var Dimensions = __webpack_require__(2);
-	var CollisionBox = __webpack_require__(6);
-	var Bullet = __webpack_require__(7);
+
+	var Point = (function () {
+	  function Point(loc) {
+	    _classCallCheck(this, Point);
+
+	    this.loc = loc;
+	  }
+
+	  _createClass(Point, [{
+	    key: 'xyzOnVisPlane',
+	    value: function xyzOnVisPlane(player) {
+	      var shadow = arguments.length <= 1 || arguments[1] === undefined ? player.shadow : arguments[1];
+	      return (function () {
+	        var projnum = player.head.dot(player.loc.minus(shadow));
+	        var projden = player.head.dot(this.loc.minus(shadow));
+	        var proj = projnum / projden;
+	        return shadow.plus(this.loc.minus(shadow).scaledBy(proj));
+	      }).apply(this, arguments);
+	    }
+	  }, {
+	    key: 'uvOnVisPlane',
+	    value: function uvOnVisPlane(player) {
+	      var p = arguments.length <= 1 || arguments[1] === undefined ? this.xyzOnVisPlane(player) : arguments[1];
+	      var height = arguments.length <= 2 || arguments[2] === undefined ? Dimensions.height : arguments[2];
+	      var width = arguments.length <= 3 || arguments[3] === undefined ? Dimensions.width : arguments[3];
+	      return (function () {
+	        var uscal = p.minus(player.loc).comp(player.u);
+	        var vscal = p.minus(player.loc).comp(player.v);
+	        var uvec = new Vector(1, 0).scaledBy(player.scaleU() * uscal);
+	        var vvec = new Vector(0, -1).scaledBy(player.scaleV() * vscal);
+	        return uvec.plus(vvec).plus(new Vector(height / 2, width / 2));
+	      })();
+	    }
+	  }, {
+	    key: 'sketchRelativeTo',
+	    value: function sketchRelativeTo(player, sketch) {
+	      var uv = this.uvOnVisPlane(player);
+	      sketch.fill(255, 255, 255);
+	      sketch.ellipse(uv.x, uv.y, 2, 2);
+	      sketch.color(255, 255, 255);
+	    }
+	  }, {
+	    key: 'isVisibleTo',
+	    value: function isVisibleTo(player) {
+	      return player.head.dot(this.loc.minus(player.loc)) > 0;
+	    }
+	  }]);
+
+	  return Point;
+	})();
+
+	module.exports = Point;
+
+/***/ },
+/* 12 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Edge = (function () {
+	  function Edge(source, target) {
+	    _classCallCheck(this, Edge);
+
+	    this.source = source;
+	    this.target = target;
+	  }
+
+	  _createClass(Edge, [{
+	    key: "xyzEndpointsRelativeTo",
+	    value: function xyzEndpointsRelativeTo(player) {
+	      var sVis = this.source.isVisibleTo(player);
+	      var tVis = this.target.isVisibleTo(player);
+	      var s = {};
+	      var t = {};
+	      if (sVis) {
+	        s = this.source.xyzOnVisPlane(player);
+	      }
+
+	      if (tVis) {
+	        t = this.target.xyzOnVisPlane(player);
+	      }
+
+	      if (!sVis && tVis) {
+	        s = this.target.xyzOnVisPlane(player, this.source.loc);
+	      }
+
+	      if (sVis && !tVis) {
+	        t = this.source.xyzOnVisPlane(player, this.target.loc);
+	      }
+
+	      return { s: s, t: t };
+	    }
+	  }, {
+	    key: "sketchRelativeTo",
+	    value: function sketchRelativeTo(player, sketch) {
+	      var xyzEnds = this.xyzEndpointsRelativeTo(player);
+	      if (!!xyzEnds.s.x && !!xyzEnds.t.x) {
+	        var uvEnds = { s: this.source.uvOnVisPlane(player, xyzEnds.s), t: this.target.uvOnVisPlane(player, xyzEnds.t) };
+	        sketch.stroke(255, 255, 255);
+	        sketch.line(uvEnds.s.x, uvEnds.s.y, uvEnds.t.x, uvEnds.t.y);
+	      }
+	    }
+	  }]);
+
+	  return Edge;
+	})();
+
+	module.exports = Edge;
+
+/***/ },
+/* 13 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var Point = __webpack_require__(11);
+
+	var Face = (function () {
+	  function Face(pointWiseEdges, loc) {
+	    var color = arguments.length <= 2 || arguments[2] === undefined ? [100, 100, 100] : arguments[2];
+
+	    _classCallCheck(this, Face);
+
+	    this.edges = pointWiseEdges;
+	    this.loc = loc;
+	    this.color = color;
+	  }
+
+	  _createClass(Face, [{
+	    key: 'xyzEndpointsRelativeTo',
+	    value: function xyzEndpointsRelativeTo(player) {
+	      return this.edges.map(function (edge) {
+	        var s_t = edge.xyzEndpointsRelativeTo(player);
+	        return [s_t.s, s_t.t];
+	      }).reduce(function (acc, elt) {
+	        return acc.concat(elt);
+	      }, []).filter(function (v) {
+	        return v.x !== undefined;
+	      });
+	    }
+	  }, {
+	    key: 'uvEndpointsRelativeTo',
+	    value: function uvEndpointsRelativeTo(player) {
+	      var xyzVertices = this.xyzEndpointsRelativeTo(player);
+	      var pointHelper = new Point();
+	      return xyzVertices.map(function (vertex) {
+	        return pointHelper.uvOnVisPlane(player, vertex);
+	      });
+	    }
+	  }, {
+	    key: 'distanceTo2',
+	    value: function distanceTo2(player) {
+	      return player.loc.dist(this.loc);
+	    }
+	  }, {
+	    key: 'sketchRelativeTo',
+	    value: function sketchRelativeTo(player, sketch) {
+	      var uvVertices = this.uvEndpointsRelativeTo(player);
+	      sketch.fill(this.color[0], this.color[1], this.color[2]);
+	      sketch.beginShape();
+	      uvVertices.forEach(function (vertex) {
+	        sketch.vertex(vertex.x, vertex.y);
+	      });
+	      sketch.endShape(sketch.CLOSE);
+	    }
+	  }]);
+
+	  return Face;
+	})();
+
+	module.exports = Face;
+
+/***/ },
+/* 14 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Obstacle = (function () {
+	  function Obstacle(edgeWiseFaces, loc) {
+	    _classCallCheck(this, Obstacle);
+
+	    this.faces = edgeWiseFaces;
+	    this.loc = loc; //vector representing any point on the 'inside' of an obstacle
+	  }
+
+	  _createClass(Obstacle, [{
+	    key: "distanceTo",
+	    value: function distanceTo(player) {
+	      return player.loc.dist(this.loc);
+	    }
+	  }, {
+	    key: "orderedFacesByDistTo",
+	    value: function orderedFacesByDistTo(player) {
+	      return this.faces.sort(function (f1, f2) {
+	        return f2.distanceTo2(player) - f1.distanceTo2(player);
+	      });
+	    }
+	  }, {
+	    key: "sketchRelativeTo",
+	    value: function sketchRelativeTo(player, sketch) {
+	      this.orderedFacesByDistTo(player).forEach(function (face) {
+	        return face.sketchRelativeTo(player, sketch);
+	      });
+	    }
+	  }]);
+
+	  return Obstacle;
+	})();
+
+	module.exports = Obstacle;
+
+/***/ },
+/* 15 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var CollisionBox = __webpack_require__(9);
+	var ObstacleBuilder = __webpack_require__(10);
+
+	var Booty = (function () {
+	  function Booty(loc, radius, width, value) {
+	    _classCallCheck(this, Booty);
+
+	    this.loc = loc;
+	    this.collSphere = new CollisionBox(loc, width);
+	    this.value = value;
+	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, [204, 163, 0]);
+	    this.health = 2;
+	  }
+
+	  _createClass(Booty, [{
+	    key: 'destroyed',
+	    value: function destroyed() {
+	      return this.health <= 0;
+	    }
+	  }, {
+	    key: 'inCollectionRange',
+	    value: function inCollectionRange(player) {
+	      return this.collSphere.generalCollisionDetected(player.collSphere);
+	    }
+	  }, {
+	    key: 'increaseWealth',
+	    value: function increaseWealth(player) {
+	      player.wealth += this.value;
+	    }
+	  }]);
+
+	  return Booty;
+	})();
+
+	module.exports = Booty;
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var CollisionBox = __webpack_require__(9);
+	var ObstacleBuilder = __webpack_require__(10);
+	var Bullet = __webpack_require__(17);
+	var Vector = __webpack_require__(7);
+
+	var Turret = (function () {
+	  function Turret(loc, radius, width) {
+	    _classCallCheck(this, Turret);
+
+	    this.loc = loc;
+	    this.collSphere = new CollisionBox(loc, width);
+	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, [170, 170, 170]);
+	    this.health = 5;
+	    this.timer = 0;
+	  }
+
+	  _createClass(Turret, [{
+	    key: 'destroyed',
+	    value: function destroyed() {
+	      return this.health <= 0;
+	    }
+	  }, {
+	    key: 'inCollisionWith',
+	    value: function inCollisionWith(player) {
+	      return this.collSphere.generalCollisionDetected(player.collSphere);
+	    }
+	  }, {
+	    key: 'detonate',
+	    value: function detonate(player) {
+	      player.health = 0;
+	    }
+	  }, {
+	    key: 'inFireRange',
+	    value: function inFireRange(player) {
+	      return this.loc.dist(player.loc) < 400;
+	    }
+	  }, {
+	    key: 'fire',
+	    value: function fire(player, bullets) {
+	      bullets.push(this.makeBullet(player));
+	      bullets.push(this.makeBullet(player));
+	      bullets.push(this.makeBullet(player));
+	      bullets.push(this.makeBullet(player));
+	      this.timer = 0;
+	    }
+	  }, {
+	    key: 'makeBullet',
+	    value: function makeBullet(player) {
+	      var rad = this.collSphere.width / 2 + 5;
+	      var axis = new Vector(Math.random() - 1, Math.random() - 1, Math.random() - 1).unit;
+	      var pre = player.loc.minus(this.loc); //.plus(player.momentum.scaledBy(1));
+	      var heading = pre.rotateAround(axis, player.momentum.mag() * (Math.random() / 10 - 1 / 20)).unit;
+	      var location = this.loc.plus(heading.scaledBy(2 * rad));
+	      return new Bullet(location, heading, 30, 3, player.v);
+	    }
+	  }]);
+
+	  return Turret;
+	})();
+
+	module.exports = Turret;
+
+/***/ },
+/* 17 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var ObstacleBuilder = __webpack_require__(10);
+
+	var Bullet = (function () {
+	  function Bullet(loc, head, speed, damage, u) {
+	    var range = arguments.length <= 5 || arguments[5] === undefined ? 400 : arguments[5];
+
+	    _classCallCheck(this, Bullet);
+
+	    this.loc = loc;
+	    this.head = head;
+	    this.speed = speed;
+	    this.damage = damage;
+	    this.prevLoc = loc;
+	    this.originalLoc = loc;
+	    this.range = range;
+	    this.u = u;
+	    this.obstacle = new ObstacleBuilder().bulletObstacle(this.loc, this.head, this.u);
+	  }
+
+	  _createClass(Bullet, [{
+	    key: 'fly',
+	    value: function fly() {
+	      this.prevLoc = this.loc;
+	      this.loc = this.loc.plus(this.head.scaledBy(this.speed));
+	      this.obstacle = new ObstacleBuilder().bulletObstacle(this.loc, this.head, this.u);
+	    }
+	  }, {
+	    key: 'hits',
+	    value: function hits(entity) {
+	      var rad = entity.collSphere.width / 2 + 2;
+	      var prop0 = this.loc.dist(entity.loc) < rad;
+	      var prop1 = this.goneAsFarAs(entity);
+	      return prop0 || prop1 && this.trajectorysDistanceTo(entity) < rad;
+	    }
+	  }, {
+	    key: 'goneAsFarAs',
+	    value: function goneAsFarAs(entity) {
+	      var arr1 = entity.loc.minus(this.prevLoc);
+	      var arr2 = this.loc.minus(entity.loc);
+	      return arr1.dot(arr2) > 0;
+	    }
+	  }, {
+	    key: 'trajectorysDistanceTo',
+	    value: function trajectorysDistanceTo(entity) {
+	      var x0 = entity.loc;
+	      var x1 = this.loc;
+	      var x2 = this.prevLoc;
+	      var num = x0.minus(x1).cross(x0.minus(x2)).mag();
+	      var denom = x2.minus(x1).mag();
+	      return num / denom;
+	    }
+	  }, {
+	    key: 'dealDamageTo',
+	    value: function dealDamageTo(entity) {
+	      entity.health -= this.damage;
+	    }
+	  }, {
+	    key: 'outOfRange',
+	    value: function outOfRange() {
+	      return this.loc.dist(this.originalLoc) > this.range;
+	    }
+	  }]);
+
+	  return Bullet;
+	})();
+
+	module.exports = Bullet;
+
+/***/ },
+/* 18 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var CollisionBox = __webpack_require__(9);
+	var ObstacleBuilder = __webpack_require__(10);
+	var Bullet = __webpack_require__(17);
+	var Vector = __webpack_require__(7);
+
+	var Fighter = (function () {
+	  function Fighter(loc, speed, radius, width, strategy, head) {
+	    _classCallCheck(this, Fighter);
+
+	    this.loc = loc;
+	    this.width = width;
+	    this.collSphere = new CollisionBox(loc, width * 1.5);
+	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, [76, 133, 255]);
+	    this.health = 5;
+	    this.timer = 0;
+	    this.strategy = strategy;
+	    this.head = head;
+	    this.momentum = new Vector(0, 0, 0);
+	  }
+
+	  //chasing player
+
+	  _createClass(Fighter, [{
+	    key: 'chase',
+	    value: function chase(player) {
+	      this.rotateTowardsPlayerStrategy(player, 0.07);
+	      this.forewardThrust();
+	      this.updateLocation();
+	    }
+	  }, {
+	    key: 'rotateTowardsPlayerStrategy',
+	    value: function rotateTowardsPlayerStrategy(player, deg) {
+	      var direction = this.directionOfPlayerStrategy(player);
+	      var axis = this.rotationAxisTowards(direction);
+	      if (direction.dot(this.head) < 0.99) {
+	        this.rotateAround(axis, deg);
+	      }
+	    }
+	  }, {
+	    key: 'forewardThrust',
+	    value: function forewardThrust() {
+	      this.momentum = this.momentum.scaledBy(0.95).plus(this.head.scaledBy(0.45));
+	    }
+	  }, {
+	    key: 'updateLocation',
+	    value: function updateLocation() {
+	      this.loc = this.loc.plus(this.momentum.scaledBy(1));
+	      this.obstacle = new ObstacleBuilder().cubeObstacle(this.loc, this.width, [76, 133, 255]);
+	    }
+	  }, {
+	    key: 'directionOfPlayerStrategy',
+	    value: function directionOfPlayerStrategy(player) {
+	      return player.loc.plus(this.strategy).minus(this.loc).unit;
+	    }
+	  }, {
+	    key: 'rotationAxisTowards',
+	    value: function rotationAxisTowards(vector) {
+	      return this.head.cross(vector);
+	    }
+	  }, {
+	    key: 'rotateAround',
+	    value: function rotateAround(axis, deg) {
+	      this.head = this.head.rotateAround(axis, deg).unit;
+	    }
+
+	    //Crashing or getting shotdown
+
+	  }, {
+	    key: 'destroyed',
+	    value: function destroyed() {
+	      return this.health <= 0;
+	    }
+	  }, {
+	    key: 'inCollisionWith',
+	    value: function inCollisionWith(entity) {
+	      return this.collSphere.generalCollisionDetected(entity.collSphere);
+	    }
+	  }, {
+	    key: 'inCollisionWithAny',
+	    value: function inCollisionWithAny(solidEntityArray) {
+	      var _this = this;
+
+	      return solidEntityArray.some(function (entity) {
+	        return _this.inCollisionWith(entity);
+	      });
+	    }
+	  }, {
+	    key: 'detonateSelf',
+	    value: function detonateSelf() {
+	      this.health = 0;
+	    }
+	  }, {
+	    key: 'detonate',
+	    value: function detonate(player) {
+	      player.health = 0;
+	    }
+
+	    //firing
+
+	  }, {
+	    key: 'inFireRange',
+	    value: function inFireRange(player) {
+	      return this.loc.dist(player.loc) < 400;
+	    }
+	  }, {
+	    key: 'fire',
+	    value: function fire(player, bullets) {
+	      bullets.push(this.makeBullet(player));
+	      this.timer = 0;
+	    }
+	  }, {
+	    key: 'makeBullet',
+	    value: function makeBullet(player) {
+	      var rad = this.collSphere.width / 2 + 5;
+	      var heading = player.loc.minus(this.loc).plus(player.momentum.scaledBy(25)).unit;
+
+	      var location = this.loc.plus(heading.scaledBy(2 * rad));
+	      return new Bullet(location, heading, 30, 0.5, player.v, 500);
+	    }
+	  }]);
+
+	  return Fighter;
+	})();
+
+	module.exports = Fighter;
+
+/***/ },
+/* 19 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+	var Vector = __webpack_require__(7);
+	var Dimensions = __webpack_require__(2);
+	var CollisionBox = __webpack_require__(9);
+	var Bullet = __webpack_require__(17);
 
 	var Player = (function () {
 	  function Player(loc, head, off, theta, phi, collRadius) {
+	    var rate = arguments.length <= 6 || arguments[6] === undefined ? 10 : arguments[6];
+	    var damage = arguments.length <= 7 || arguments[7] === undefined ? 1 : arguments[7];
+
 	    _classCallCheck(this, Player);
 
 	    this.loc = loc;
@@ -13021,6 +14144,8 @@
 	    this.wealth = 0;
 	    this.win = false;
 	    this.alert = "";
+	    this.rate = rate;
+	    this.damage = damage;
 	  }
 
 	  _createClass(Player, [{
@@ -13033,7 +14158,7 @@
 	    value: function makeBullet(side) {
 	      var location = this.loc.plus(this.momentum).plus(this.head.scaledBy(5)).plus(this.u.scaledBy(side * 4)).minus(this.v.scaledBy(4));
 	      var heading = this.head.unit;
-	      return new Bullet(location, heading, this.speed + 45, 1, this.u);
+	      return new Bullet(location, heading, this.speed + 45, this.damage, this.u);
 	    }
 	  }, {
 	    key: 'moveForward',
@@ -13139,7 +14264,7 @@
 	  }, {
 	    key: 'dead',
 	    get: function get() {
-	      return this.health === 0;
+	      return this.health <= 0;
 	    }
 	  }]);
 
@@ -13154,45 +14279,7 @@
 	module.exports = Player;
 
 /***/ },
-/* 6 */
-/***/ function(module, exports) {
-
-	"use strict";
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var CollisionBox = (function () {
-	  function CollisionBox(loc, width) {
-	    _classCallCheck(this, CollisionBox);
-
-	    this.loc = loc;
-	    this.width = width;
-	    this.cornerX = this.loc.x - this.width / 2;
-	    this.cornerY = this.loc.y - this.width / 2;
-	    this.cornerZ = this.loc.z - this.width / 2;
-	  }
-
-	  _createClass(CollisionBox, [{
-	    key: "generalCollisionDetected",
-	    value: function generalCollisionDetected(sphere) {
-	      var location = sphere.loc;
-	      var rad = sphere.width;
-	      var prop0 = this.cornerX < location.x + rad && location.x - rad < this.cornerX + this.width;
-	      var prop1 = this.cornerY < location.y + rad && location.y - rad < this.cornerY + this.width;
-	      var prop2 = this.cornerZ < location.z + rad && location.z - rad < this.cornerZ + this.width;
-	      return prop0 && prop1 && prop2;
-	    }
-	  }]);
-
-	  return CollisionBox;
-	})();
-
-	module.exports = CollisionBox;
-
-/***/ },
-/* 7 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13201,913 +14288,8 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var ObstacleBuilder = __webpack_require__(8);
-
-	var Bullet = (function () {
-	  function Bullet(loc, head, speed, damage, u) {
-	    _classCallCheck(this, Bullet);
-
-	    this.loc = loc;
-	    this.head = head;
-	    this.speed = speed;
-	    this.damage = damage;
-	    this.prevLoc = loc;
-	    this.originalLoc = loc;
-	    this.range = 400;
-	    this.u = u;
-	    this.obstacle = new ObstacleBuilder().bulletObstacle(this.loc, this.head, this.u);
-	  }
-
-	  _createClass(Bullet, [{
-	    key: 'fly',
-	    value: function fly() {
-	      this.prevLoc = this.loc;
-	      this.loc = this.loc.plus(this.head.scaledBy(this.speed));
-	      this.obstacle = new ObstacleBuilder().bulletObstacle(this.loc, this.head, this.u);
-	    }
-	  }, {
-	    key: 'hits',
-	    value: function hits(entity) {
-	      var rad = entity.collSphere.width / 2 + 2;
-	      var prop0 = this.loc.dist(entity.loc) < rad;
-	      var prop1 = this.goneAsFarAs(entity);
-	      return prop0 || prop1 && this.trajectorysDistanceTo(entity) < rad;
-	    }
-	  }, {
-	    key: 'goneAsFarAs',
-	    value: function goneAsFarAs(entity) {
-	      var arr1 = entity.loc.minus(this.prevLoc);
-	      var arr2 = this.loc.minus(entity.loc);
-	      return arr1.dot(arr2) > 0;
-	    }
-	  }, {
-	    key: 'trajectorysDistanceTo',
-	    value: function trajectorysDistanceTo(entity) {
-	      var x0 = entity.loc;
-	      var x1 = this.loc;
-	      var x2 = this.prevLoc;
-	      var num = x0.minus(x1).cross(x0.minus(x2)).mag();
-	      var denom = x2.minus(x1).mag();
-	      return num / denom;
-	    }
-	  }, {
-	    key: 'dealDamageTo',
-	    value: function dealDamageTo(entity) {
-	      entity.health -= this.damage;
-	    }
-	  }, {
-	    key: 'outOfRange',
-	    value: function outOfRange() {
-	      return this.loc.dist(this.originalLoc) > this.range;
-	    }
-	  }]);
-
-	  return Bullet;
-	})();
-
-	module.exports = Bullet;
-
-/***/ },
-/* 8 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var Vector = __webpack_require__(4);
-	var Point = __webpack_require__(9);
-	var Edge = __webpack_require__(10);
-	var Face = __webpack_require__(11);
-	var Obstacle = __webpack_require__(12);
-
-	var ObstacleBuilder = (function () {
-	  function ObstacleBuilder() {
-	    _classCallCheck(this, ObstacleBuilder);
-	  }
-
-	  _createClass(ObstacleBuilder, [{
-	    key: 'square',
-	    value: function square(corner, side1direction, side2direction, width, color) {
-	      var edges = [];
-	      var p0 = new Point(corner);
-	      var p1 = new Point(corner.plus(side1direction.scaledBy(width)));
-	      var p3 = new Point(corner.plus(side2direction.scaledBy(width)));
-	      var p2 = new Point(corner.plus(side2direction.scaledBy(width)).plus(side1direction.scaledBy(width)));
-
-	      edges[0] = new Edge(p0, p1);
-	      edges[1] = new Edge(p1, p2);
-	      edges[2] = new Edge(p2, p3);
-	      edges[3] = new Edge(p3, p0);
-
-	      var location = corner.plus(p2.loc.minus(corner).scaledBy(0.5));
-	      return new Face(edges, location, color);
-	    }
-	  }, {
-	    key: 'longRectSheet',
-	    value: function longRectSheet(corner, side1direction, side2direction, width, number, side, color) {
-	      var faces = [];
-	      var sideDir = ({ 1: side1direction, 2: side2direction })[side];
-	      for (var i = 0; i < number; i++) {
-	        faces.push(this.square(corner, side1direction, side2direction, width, color));
-	        corner = corner.plus(sideDir.scaledBy(width));
-	      }
-	      return faces;
-	    }
-	  }, {
-	    key: 'rectSheet',
-	    value: function rectSheet(corner, side1direction, side2direction, width, number1, number2, color) {
-	      var faces = [];
-	      for (var j = 0; j < number2; j++) {
-	        faces = faces.concat(this.longRectSheet(corner, side1direction, side2direction, width, number1, 1, color));
-	        corner = corner.plus(side2direction.scaledBy(width));
-	      }
-	      return faces;
-	    }
-	  }, {
-	    key: 'cubeObstacle',
-	    value: function cubeObstacle(loc, width) {
-	      var color = arguments.length <= 2 || arguments[2] === undefined ? [204, 0, 0] : arguments[2];
-
-	      var frontBottomLeft = loc.plus(new Vector(width / 2, -width / 2, -width / 2));
-	      var backTopRight = loc.plus(new Vector(-width / 2, width / 2, width / 2));
-	      var faces = [];
-	      faces[0] = this.square(frontBottomLeft, new Vector(0, 1, 0), new Vector(0, 0, 1), width, color);
-	      faces[1] = this.square(frontBottomLeft, new Vector(-1, 0, 0), new Vector(0, 0, 1), width, color);
-	      faces[2] = this.square(frontBottomLeft, new Vector(0, 1, 0), new Vector(-1, 0, 0), width, color);
-	      faces[3] = this.square(backTopRight, new Vector(0, 0, -1), new Vector(0, -1, 0), width, color);
-	      faces[4] = this.square(backTopRight, new Vector(1, 0, 0), new Vector(0, 0, -1), width, color);
-	      faces[5] = this.square(backTopRight, new Vector(0, -1, 0), new Vector(1, 0, 0), width, color);
-
-	      return new Obstacle(faces, loc);
-	    }
-	  }, {
-	    key: 'bulletObstacle',
-	    value: function bulletObstacle(loc, heading, u) {
-	      var bulletColor = [94, 236, 255];
-	      var faces = [];
-	      var edgeArrow1 = heading.scaledBy(7).plus(u.scaledBy(0.5));
-	      var edgeArrow2 = heading.scaledBy(7).plus(u.scaledBy(-0.5));
-	      faces[0] = this.square(loc, edgeArrow1, edgeArrow2, 2, bulletColor);
-
-	      return new Obstacle(faces, loc);
-	    }
-	  }]);
-
-	  return ObstacleBuilder;
-	})();
-
-	module.exports = ObstacleBuilder;
-
-/***/ },
-/* 9 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var Vector = __webpack_require__(4);
-	var Dimensions = __webpack_require__(2);
-
-	var Point = (function () {
-	  function Point(loc) {
-	    _classCallCheck(this, Point);
-
-	    this.loc = loc;
-	  }
-
-	  _createClass(Point, [{
-	    key: 'xyzOnVisPlane',
-	    value: function xyzOnVisPlane(player) {
-	      var shadow = arguments.length <= 1 || arguments[1] === undefined ? player.shadow : arguments[1];
-	      return (function () {
-	        var projnum = player.head.dot(player.loc.minus(shadow));
-	        var projden = player.head.dot(this.loc.minus(shadow));
-	        var proj = projnum / projden;
-	        return shadow.plus(this.loc.minus(shadow).scaledBy(proj));
-	      }).apply(this, arguments);
-	    }
-	  }, {
-	    key: 'uvOnVisPlane',
-	    value: function uvOnVisPlane(player) {
-	      var p = arguments.length <= 1 || arguments[1] === undefined ? this.xyzOnVisPlane(player) : arguments[1];
-	      var height = arguments.length <= 2 || arguments[2] === undefined ? Dimensions.height : arguments[2];
-	      var width = arguments.length <= 3 || arguments[3] === undefined ? Dimensions.width : arguments[3];
-	      return (function () {
-	        var uscal = p.minus(player.loc).comp(player.u);
-	        var vscal = p.minus(player.loc).comp(player.v);
-	        var uvec = new Vector(1, 0).scaledBy(player.scaleU() * uscal);
-	        var vvec = new Vector(0, -1).scaledBy(player.scaleV() * vscal);
-	        return uvec.plus(vvec).plus(new Vector(height / 2, width / 2));
-	      })();
-	    }
-	  }, {
-	    key: 'sketchRelativeTo',
-	    value: function sketchRelativeTo(player, sketch) {
-	      var uv = this.uvOnVisPlane(player);
-	      sketch.fill(255, 255, 255);
-	      sketch.ellipse(uv.x, uv.y, 2, 2);
-	      sketch.color(255, 255, 255);
-	    }
-	  }, {
-	    key: 'isVisibleTo',
-	    value: function isVisibleTo(player) {
-	      return player.head.dot(this.loc.minus(player.loc)) > 0;
-	    }
-	  }]);
-
-	  return Point;
-	})();
-
-	module.exports = Point;
-
-/***/ },
-/* 10 */
-/***/ function(module, exports) {
-
-	"use strict";
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var Edge = (function () {
-	  function Edge(source, target) {
-	    _classCallCheck(this, Edge);
-
-	    this.source = source;
-	    this.target = target;
-	  }
-
-	  _createClass(Edge, [{
-	    key: "xyzEndpointsRelativeTo",
-	    value: function xyzEndpointsRelativeTo(player) {
-	      var sVis = this.source.isVisibleTo(player);
-	      var tVis = this.target.isVisibleTo(player);
-	      var s = {};
-	      var t = {};
-	      if (sVis) {
-	        s = this.source.xyzOnVisPlane(player);
-	      }
-
-	      if (tVis) {
-	        t = this.target.xyzOnVisPlane(player);
-	      }
-
-	      if (!sVis && tVis) {
-	        s = this.target.xyzOnVisPlane(player, this.source.loc);
-	      }
-
-	      if (sVis && !tVis) {
-	        t = this.source.xyzOnVisPlane(player, this.target.loc);
-	      }
-
-	      return { s: s, t: t };
-	    }
-	  }, {
-	    key: "sketchRelativeTo",
-	    value: function sketchRelativeTo(player, sketch) {
-	      var xyzEnds = this.xyzEndpointsRelativeTo(player);
-	      if (!!xyzEnds.s.x && !!xyzEnds.t.x) {
-	        var uvEnds = { s: this.source.uvOnVisPlane(player, xyzEnds.s), t: this.target.uvOnVisPlane(player, xyzEnds.t) };
-	        sketch.stroke(255, 255, 255);
-	        sketch.line(uvEnds.s.x, uvEnds.s.y, uvEnds.t.x, uvEnds.t.y);
-	      }
-	    }
-	  }]);
-
-	  return Edge;
-	})();
-
-	module.exports = Edge;
-
-/***/ },
-/* 11 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var Point = __webpack_require__(9);
-
-	var Face = (function () {
-	  function Face(pointWiseEdges, loc) {
-	    var color = arguments.length <= 2 || arguments[2] === undefined ? [100, 100, 100] : arguments[2];
-
-	    _classCallCheck(this, Face);
-
-	    this.edges = pointWiseEdges;
-	    this.loc = loc;
-	    this.color = color;
-	  }
-
-	  _createClass(Face, [{
-	    key: 'xyzEndpointsRelativeTo',
-	    value: function xyzEndpointsRelativeTo(player) {
-	      return this.edges.map(function (edge) {
-	        var s_t = edge.xyzEndpointsRelativeTo(player);
-	        return [s_t.s, s_t.t];
-	      }).reduce(function (acc, elt) {
-	        return acc.concat(elt);
-	      }, []).filter(function (v) {
-	        return v.x !== undefined;
-	      });
-	    }
-	  }, {
-	    key: 'uvEndpointsRelativeTo',
-	    value: function uvEndpointsRelativeTo(player) {
-	      var xyzVertices = this.xyzEndpointsRelativeTo(player);
-	      var pointHelper = new Point();
-	      return xyzVertices.map(function (vertex) {
-	        return pointHelper.uvOnVisPlane(player, vertex);
-	      });
-	    }
-	  }, {
-	    key: 'distanceTo2',
-	    value: function distanceTo2(player) {
-	      return player.loc.dist(this.loc);
-	    }
-	  }, {
-	    key: 'sketchRelativeTo',
-	    value: function sketchRelativeTo(player, sketch) {
-	      var uvVertices = this.uvEndpointsRelativeTo(player);
-	      sketch.fill(this.color[0], this.color[1], this.color[2]);
-	      sketch.beginShape();
-	      uvVertices.forEach(function (vertex) {
-	        sketch.vertex(vertex.x, vertex.y);
-	      });
-	      sketch.endShape(sketch.CLOSE);
-	    }
-	  }]);
-
-	  return Face;
-	})();
-
-	module.exports = Face;
-
-/***/ },
-/* 12 */
-/***/ function(module, exports) {
-
-	"use strict";
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var Obstacle = (function () {
-	  function Obstacle(edgeWiseFaces, loc) {
-	    _classCallCheck(this, Obstacle);
-
-	    this.faces = edgeWiseFaces;
-	    this.loc = loc; //vector representing any point on the 'inside' of an obstacle
-	  }
-
-	  _createClass(Obstacle, [{
-	    key: "distanceTo",
-	    value: function distanceTo(player) {
-	      return player.loc.dist(this.loc);
-	    }
-	  }, {
-	    key: "orderedFacesByDistTo",
-	    value: function orderedFacesByDistTo(player) {
-	      return this.faces.sort(function (f1, f2) {
-	        return f2.distanceTo2(player) - f1.distanceTo2(player);
-	      });
-	    }
-	  }, {
-	    key: "sketchRelativeTo",
-	    value: function sketchRelativeTo(player, sketch) {
-	      this.orderedFacesByDistTo(player).forEach(function (face) {
-	        return face.sketchRelativeTo(player, sketch);
-	      });
-	    }
-	  }]);
-
-	  return Obstacle;
-	})();
-
-	module.exports = Obstacle;
-
-/***/ },
-/* 13 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var PlayerControls = __webpack_require__(14);
-	var LevelLibrary = __webpack_require__(15);
-	var StarBuilder = __webpack_require__(20);
-
-	var Game = (function () {
-	  function Game(player, level, sketch) {
-	    _classCallCheck(this, Game);
-
-	    this.player = player;
-	    this.level = new LevelLibrary().level(level);
-	    this.bullets = [];
-	    this.playerControls = new PlayerControls(player, this.level.booty, this.bullets);
-	    this.sketch = sketch;
-	    if (level === 0) {
-	      this.player.alert = "Press 'w' to move forward.\nHit purple boxes for in-game hints.";
-	    }
-	    this.starBuilder = new StarBuilder(1050);
-	  }
-
-	  _createClass(Game, [{
-	    key: 'renderGame',
-	    value: function renderGame() {
-	      var _this = this;
-
-	      this.sketch.background(0, 0, 0);
-	      this.starBuilder.drawBackgroundRelativeTo(this.player, this.sketch);
-	      this.sketch.stroke(60, 60, 60);
-	      this.sketch.strokeWeight(1);
-
-	      this.renderableEntitiesOrderedByDistanceToPlayer.forEach(function (entity) {
-	        entity.obstacle.sketchRelativeTo(_this.player, _this.sketch);
-	      });
-	    }
-	  }, {
-	    key: 'updateCollisionState',
-	    value: function updateCollisionState() {
-	      var _this2 = this;
-
-	      this.solidEntities.forEach(function (solidEntity) {
-	        if (solidEntity.inCollisionWith(_this2.player)) {
-	          solidEntity.detonate(_this2.player);
-	        }
-	      });
-	    }
-	  }, {
-	    key: 'updateMessageState',
-	    value: function updateMessageState() {
-	      var _this3 = this;
-
-	      this.level.messages.forEach(function (message) {
-	        if (message.inMessageRange(_this3.player)) {
-	          message.inform(_this3.player);
-	        }
-	      });
-	    }
-	  }, {
-	    key: 'updateTurretState',
-	    value: function updateTurretState() {
-	      var _this4 = this;
-
-	      this.level.turrets.forEach(function (turret, index, turretArray) {
-	        turret.timer++;
-	        if (turret.inFireRange(_this4.player) && turret.timer > 15) {
-	          turret.fire(_this4.player, _this4.bullets);
-	        }
-	        if (turret.destroyed()) {
-	          turretArray.splice(index, 1);
-	          _this4.level.turrets = turretArray;
-	        }
-	      });
-	    }
-	  }, {
-	    key: 'updateBootyState',
-	    value: function updateBootyState() {
-	      var _this5 = this;
-
-	      this.level.booty.forEach(function (boot, index, bootyArray) {
-	        if (boot.inCollectionRange(_this5.player) || boot.destroyed()) {
-	          boot.increaseWealth(_this5.player);
-	          bootyArray.splice(index, 1);
-	          _this5.level.booty = bootyArray;
-	        }
-	      });
-	    }
-	  }, {
-	    key: 'updateBulletState',
-	    value: function updateBulletState() {
-	      var _this6 = this;
-
-	      this.bullets.forEach(function (bullet, index, bulletArray) {
-	        bullet.fly();
-	        if (bullet.outOfRange()) {
-	          bulletArray.splice(index, 1);
-	          _this6.bullets = bulletArray;
-	        } else {
-	          _this6.shootableEntities.forEach(function (shootable) {
-	            if (bullet.hits(shootable)) {
-	              bullet.dealDamageTo(shootable);
-	              bulletArray.splice(index, 1);
-	              _this6.bullets = bulletArray;
-	            }
-	          });
-	        }
-	      });
-	    }
-	  }, {
-	    key: 'updateGameState',
-	    value: function updateGameState() {
-	      this.updateBootyState();
-	      this.updateBulletState();
-	      this.updateTurretState();
-	      this.updateCollisionState();
-	      this.updateMessageState();
-	      this.playerControls.control(this.sketch);
-	    }
-	  }, {
-	    key: 'shootableEntities',
-	    get: function get() {
-	      return this.level.mines.concat(this.level.booty).concat([this.player]).concat(this.level.turrets).concat(this.level.mothership);
-	    }
-	  }, {
-	    key: 'solidEntities',
-	    get: function get() {
-	      return this.level.mines.concat(this.level.turrets).concat(this.level.mothership);
-	    }
-	  }, {
-	    key: 'renderableEntities',
-	    get: function get() {
-	      return this.level.mines.concat(this.level.booty).concat(this.bullets).concat(this.level.turrets).concat(this.level.mothership).concat(this.level.messages);
-	    }
-	  }, {
-	    key: 'renderableEntitiesOrderedByDistanceToPlayer',
-	    get: function get() {
-	      return this.renderableEntities.sort((function (e1, e2) {
-	        return e2.obstacle.distanceTo(this.player) - e1.obstacle.distanceTo(this.player);
-	      }).bind(this));
-	    }
-	  }, {
-	    key: 'win',
-	    get: function get() {
-	      return this.level.booty.length === 0;
-	    }
-	  }]);
-
-	  return Game;
-	})();
-
-	module.exports = Game;
-
-/***/ },
-/* 14 */
-/***/ function(module, exports) {
-
-	"use strict";
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var PlayerControls = (function () {
-	  function PlayerControls(player, booty, bullets) {
-	    _classCallCheck(this, PlayerControls);
-
-	    this.player = player;
-	    this.booty = booty;
-	    this.dict = {
-	      w: 87,
-	      a: 65,
-	      d: 68,
-	      s: 83,
-	      f: 70,
-	      o: 79,
-	      l: 76,
-	      k: 75,
-	      j: 74,
-	      g: 71,
-	      ";": 186,
-	      "shift": 16,
-	      "space": 32
-	    };
-	    this.bullets = bullets;
-	    this.timer = 0;
-	  }
-
-	  _createClass(PlayerControls, [{
-	    key: "control",
-	    value: function control(sketch) {
-	      if (sketch.keyIsDown(this.dict["w"])) {
-	        this.player.moveForward();
-	      }
-	      if (sketch.keyIsDown(this.dict["s"])) {
-	        this.player.moveBackward();
-	      }
-	      if (sketch.keyIsDown(this.dict["a"])) {
-	        this.player.rotateOnV(-0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict["d"])) {
-	        this.player.rotateOnV(0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict["l"])) {
-	        this.player.rotateOnU(-0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict["o"])) {
-	        this.player.rotateOnU(0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict["k"])) {
-	        this.player.rotateOnHead(0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict[";"])) {
-	        this.player.rotateOnHead(-0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict["shift"])) {
-	        this.player.momentum = this.player.momentum.scaledBy(14 / 15);
-	      }
-	      if (sketch.keyIsDown(this.dict["j"])) {
-	        this.player.rotateTowardsClosestEntity(this.booty, 0.05);
-	      }
-	      if (sketch.keyIsDown(this.dict["f"])) {
-	        this.player.rotateTowardsMomentum(0.1);
-	      }
-	      //kills player
-	      if (sketch.keyIsDown(this.dict["g"])) {
-	        this.player.health = 0;
-	      }
-	      if (sketch.keyIsDown(this.dict["space"])) {
-	        if (this.timer > 10) {
-	          this.player.fire(this.bullets);
-	          this.timer = 0;
-	        }
-	      }
-	      this.player.updateVecs();
-	      this.timer++;
-	    }
-	  }]);
-
-	  return PlayerControls;
-	})();
-
-	module.exports = PlayerControls;
-
-/***/ },
-/* 15 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var Vector = __webpack_require__(4);
-	var Mine = __webpack_require__(16);
-	var Booty = __webpack_require__(17);
-	var Turret = __webpack_require__(18);
-	// const Mothership = require('./mothership');
-	var Message = __webpack_require__(19);
-
-	var LevelLibrary = (function () {
-	  function LevelLibrary() {
-	    _classCallCheck(this, LevelLibrary);
-	  }
-
-	  _createClass(LevelLibrary, [{
-	    key: 'level',
-	    value: function level(id) {
-	      switch (id) {
-	        case 0:
-	          return this.level0;
-	        case 1:
-	          return this.level1;
-	        case 2:
-	          return this.level2;
-	        case 3:
-	          break;
-	      }
-	    }
-	  }, {
-	    key: 'randomEntity',
-	    value: function randomEntity(distance, width, EntityClass) {
-	      var r = 2 * Math.random() + 0.25;
-	      var x = 2 * Math.random() - 1;
-	      var y = 2 * Math.random() - 1;
-	      var z = 2 * Math.random() - 1;
-	      var loc = new Vector(x, y, z).unit.scaledBy(r * distance);
-	      return new EntityClass(loc, 0, width, 200);
-	    }
-	  }, {
-	    key: 'seedRandomEntities',
-	    value: function seedRandomEntities(distance, width, number, EntityClass) {
-	      var entities = [];
-	      for (var i = 0; i < number; i++) {
-	        entities.push(this.randomEntity(distance, width, EntityClass));
-	      }
-	      return entities;
-	    }
-	  }, {
-	    key: 'level0',
-	    get: function get() {
-	      var messages = [new Message(new Vector(300, 0, 0), 10, "Run into yellow boxes to collect wealth."), new Message(new Vector(1600, 0, 0), 8, "Press the 'Shift' key to slow down."), new Message(new Vector(2400, 0, 0), 12, "Pressing the 'D' key will rotate you to the right.\n'A' will rotate to the left."), new Message(new Vector(3300, 0, 0), 12, "The next yellow box is to your right.\nPress 'D' and then move toward it."), new Message(new Vector(5600, 2000, 0), 60, "Press the 'A' key to rotate to the next yellow box."), new Message(new Vector(7600, 2000, 0), 60, "Press the 'S' slow down and reverse.\nTry it.\nThen hit 'W' to move forward again\nto the next purple box."), new Message(new Vector(8600, 2000, 0), 60, "The 'O' and 'L' keys control pitch.\n 'L' will pull your craft up\n and 'O' will cause your craft to dive.\nFind the next HUGE message box.\n It is not far above you."), new Message(new Vector(9900, 2000, 1500), 100, "If you get lost, hold the 'J' key\n to turn your ship towards the nearest yellow box.\nTry it now. Then go get it.")];
-
-	      var mines = [];
-	      var booty = [new Booty(new Vector(600, 0, 0), 6, 8, 50), new Booty(new Vector(1200, 0, 0), 11, 20, 50), new Booty(new Vector(2000, 0, 0), 11, 20, 100), new Booty(new Vector(4600, 1000, 0), 55, 100, 100), new Booty(new Vector(6600, 2000, 0), 40, 75, 150), new Booty(new Vector(9900, 3500, 2900), 40, 75, 150)];
-	      var turrets = [];
-	      return { mines: mines, booty: booty, turrets: turrets, mothership: [], messages: messages };
-	    }
-	  }, {
-	    key: 'level1',
-	    get: function get() {
-	      var mines = [new Mine(new Vector(950, 1200, 50), 16, 30), new Mine(new Vector(1050, 1500, 150), 16, 30), new Mine(new Vector(1100, 1900, 350), 16, 30), new Mine(new Vector(1150, 2150, 700), 16, 30), new Mine(new Vector(1050, 2150, 700), 16, 30), new Mine(new Vector(1250, 2550, 1300), 16, 30), new Mine(new Vector(1250, 2750, 1200), 16, 30), new Mine(new Vector(1350, 2650, 1500), 16, 30), new Mine(new Vector(1800, 3050, 1800), 16, 30), new Mine(new Vector(1750, 3200, 2000), 26, 50), new Mine(new Vector(1750, 3150, 2200), 26, 50), new Mine(new Vector(1850, 3050, 2300), 26, 50), new Mine(new Vector(1500, 3100, 2500), 26, 50), new Mine(new Vector(1300, 3100, 2700), 26, 50), new Mine(new Vector(1250, 3100, 3000), 26, 50), new Mine(new Vector(1200, 3150, 3300), 26, 50), new Mine(new Vector(1200, 3100, 3500), 26, 50)];
-	      var booty = [new Booty(new Vector(150, 0, 0), 6, 10, 200), new Booty(new Vector(300, 0, 0), 6, 10, 200), new Booty(new Vector(450, 0, 0), 6, 10, 200), new Booty(new Vector(600, 30, 0), 11, 20, 100), new Booty(new Vector(800, 150, 0), 11, 20, 100), new Booty(new Vector(1000, 400, 0), 11, 20, 100), new Booty(new Vector(1000, 650, 0), 8, 15, 150), new Booty(new Vector(1000, 900, 0), 8, 15, 150), new Booty(new Vector(1000, 1200, 50), 22, 40, 100), new Booty(new Vector(1000, 1500, 150), 22, 40, 100), new Booty(new Vector(1000, 1700, 250), 11, 20, 100), new Booty(new Vector(1000, 1850, 350), 11, 20, 100), new Booty(new Vector(1000, 2000, 500), 11, 20, 100), new Booty(new Vector(1100, 2200, 700), 22, 40, 100), new Booty(new Vector(1200, 2400, 1000), 22, 40, 200), new Booty(new Vector(1400, 2700, 1300), 17, 30, 200), new Booty(new Vector(1700, 3000, 1700), 17, 30, 200), new Booty(new Vector(1800, 3100, 2000), 17, 30, 300), new Booty(new Vector(1700, 3100, 2200), 17, 30, 300), new Booty(new Vector(1600, 3100, 2500), 17, 30, 300), new Booty(new Vector(1400, 3100, 2700), 17, 30, 300), new Booty(new Vector(1400, 3100, 3100), 17, 30, 300), new Booty(new Vector(1200, 3100, 3400), 17, 30, 500), new Booty(new Vector(1000, 3100, 3600), 17, 30, 700), new Booty(new Vector(1100, 3400, 3700), 17, 30, 700), new Booty(new Vector(900, 3200, 3900), 17, 30, 700), new Booty(new Vector(900, 3300, 3800), 17, 30, 300)];
-	      var turrets = [new Turret(new Vector(1000, 3300, 3800), 40, 70)];
-	      return { mines: mines, booty: booty, turrets: turrets, mothership: [], messages: [] };
-	    }
-	  }, {
-	    key: 'level2',
-	    get: function get() {
-	      var mines = this.seedRandomEntities(200, 40, 17, Mine);
-
-	      var booty = this.seedRandomEntities(200, 10, 12, Booty);
-
-	      var turrets = [new Turret(new Vector(425, 0, 0), 0, 30), new Turret(new Vector(-425, 0, 0), 0, 30), new Turret(new Vector(0, 425, 0), 0, 30), new Turret(new Vector(0, -425, 0), 0, 30), new Turret(new Vector(0, 0, 425), 0, 30), new Turret(new Vector(0, 0, -425), 0, 30)];
-
-	      return { mines: mines, booty: booty, turrets: turrets, mothership: [], messages: [] };
-	    }
-	  }]);
-
-	  return LevelLibrary;
-	})();
-
-	module.exports = LevelLibrary;
-
-/***/ },
-/* 16 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var CollisionBox = __webpack_require__(6);
-	var ObstacleBuilder = __webpack_require__(8);
-
-	var Mine = (function () {
-	  function Mine(loc, radius, width) {
-	    _classCallCheck(this, Mine);
-
-	    this.loc = loc;
-	    this.collSphere = new CollisionBox(loc, width);
-	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width);
-	    this.health = 5;
-	  }
-
-	  _createClass(Mine, [{
-	    key: 'inCollisionWith',
-	    value: function inCollisionWith(player) {
-	      return this.collSphere.generalCollisionDetected(player.collSphere);
-	    }
-	  }, {
-	    key: 'detonate',
-	    value: function detonate(player) {
-	      player.health = 0;
-	    }
-	  }]);
-
-	  return Mine;
-	})();
-
-	module.exports = Mine;
-
-/***/ },
-/* 17 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var CollisionBox = __webpack_require__(6);
-	var ObstacleBuilder = __webpack_require__(8);
-
-	var Booty = (function () {
-	  function Booty(loc, radius, width, value) {
-	    _classCallCheck(this, Booty);
-
-	    this.loc = loc;
-	    this.collSphere = new CollisionBox(loc, width);
-	    this.value = value;
-	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, [204, 163, 0]);
-	    this.health = 2;
-	  }
-
-	  _createClass(Booty, [{
-	    key: 'destroyed',
-	    value: function destroyed() {
-	      return this.health <= 0;
-	    }
-	  }, {
-	    key: 'inCollectionRange',
-	    value: function inCollectionRange(player) {
-	      return this.collSphere.generalCollisionDetected(player.collSphere);
-	    }
-	  }, {
-	    key: 'increaseWealth',
-	    value: function increaseWealth(player) {
-	      player.wealth += this.value;
-	    }
-	  }]);
-
-	  return Booty;
-	})();
-
-	module.exports = Booty;
-
-/***/ },
-/* 18 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var CollisionBox = __webpack_require__(6);
-	var ObstacleBuilder = __webpack_require__(8);
-	var Bullet = __webpack_require__(7);
-	var Vector = __webpack_require__(4);
-
-	var Turret = (function () {
-	  function Turret(loc, radius, width) {
-	    _classCallCheck(this, Turret);
-
-	    this.loc = loc;
-	    this.collSphere = new CollisionBox(loc, width);
-	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, [170, 170, 170]);
-	    this.health = 5;
-	    this.timer = 0;
-	  }
-
-	  _createClass(Turret, [{
-	    key: 'destroyed',
-	    value: function destroyed() {
-	      return this.health <= 0;
-	    }
-	  }, {
-	    key: 'inCollisionWith',
-	    value: function inCollisionWith(player) {
-	      return this.collSphere.generalCollisionDetected(player.collSphere);
-	    }
-	  }, {
-	    key: 'detonate',
-	    value: function detonate(player) {
-	      player.health = 0;
-	    }
-	  }, {
-	    key: 'inFireRange',
-	    value: function inFireRange(player) {
-	      return this.loc.dist(player.loc) < 400;
-	    }
-	  }, {
-	    key: 'fire',
-	    value: function fire(player, bullets) {
-	      bullets.push(this.makeBullet(player));
-	      bullets.push(this.makeBullet(player));
-	      bullets.push(this.makeBullet(player));
-	      bullets.push(this.makeBullet(player));
-	      this.timer = 0;
-	    }
-	  }, {
-	    key: 'makeBullet',
-	    value: function makeBullet(player) {
-	      var rad = this.collSphere.width / 2 + 5;
-	      var axis = new Vector(Math.random() - 1, Math.random() - 1, Math.random() - 1).unit;
-	      var pre = player.loc.minus(this.loc); //.plus(player.momentum.scaledBy(1));
-	      var heading = pre.rotateAround(axis, player.momentum.mag() * (Math.random() - 1)).unit;
-	      var location = this.loc.plus(heading.scaledBy(2 * rad));
-	      return new Bullet(location, heading, 30, 1, player.v);
-	    }
-	  }]);
-
-	  return Turret;
-	})();
-
-	module.exports = Turret;
-
-/***/ },
-/* 19 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var CollisionBox = __webpack_require__(6);
-	var ObstacleBuilder = __webpack_require__(8);
+	var CollisionBox = __webpack_require__(9);
+	var ObstacleBuilder = __webpack_require__(10);
 
 	var Message = (function () {
 	  function Message(loc, width, alertMessage) {
@@ -14137,7 +14319,7 @@
 	module.exports = Message;
 
 /***/ },
-/* 20 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -14146,8 +14328,8 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var Vector = __webpack_require__(4);
-	var Point = __webpack_require__(9);
+	var Vector = __webpack_require__(7);
+	var Point = __webpack_require__(11);
 
 	var StarBuilder = (function () {
 	  function StarBuilder(n) {
@@ -14191,7 +14373,7 @@
 	module.exports = StarBuilder;
 
 /***/ },
-/* 21 */
+/* 22 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -14253,6 +14435,7 @@
 	      var width = this.width;
 	      var height = this.height;
 	      sketch.noStroke();
+	      this.sketch.textFont("Courier");
 	      sketch.textSize(30);
 	      sketch.text("" + player.alert, 4 / 12 * width, 3 / 20 * height);
 	      sketch.textSize(20);
@@ -14270,7 +14453,7 @@
 	module.exports = Cockpit;
 
 /***/ },
-/* 22 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -14279,7 +14462,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var $ = __webpack_require__(23);
+	var $ = __webpack_require__(24);
 
 	var NewGame = (function () {
 	  function NewGame(sketch, gameLoop, inGame, width, height) {
@@ -14290,6 +14473,7 @@
 	    this.inGame = inGame;
 	    this.width = width;
 	    this.height = height;
+	    this.stars = this.generateStarBackground(250);
 	  }
 
 	  _createClass(NewGame, [{
@@ -14304,6 +14488,7 @@
 	      $('#zero-button').remove();
 	      $('#first-button').remove();
 	      $('#second-button').remove();
+	      $('#third-button').remove();
 	      $('#help-button').remove();
 	    }
 	  }, {
@@ -14314,7 +14499,7 @@
 	      var button = this.sketch.createButton("Start Tutorial");
 	      button.id('zero-button');
 	      button['class']('button');
-	      button.position(3 * this.height / 8, 3 * this.width / 10);
+	      button.position(1 * this.height / 8, 3 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#zero-button').on('click', (function () {
 	        _this.setGameState(1, 0);
@@ -14330,7 +14515,7 @@
 	      var button = this.sketch.createButton("Start Level 1");
 	      button.id('first-button');
 	      button['class']('button');
-	      button.position(3 * this.height / 8, 4 * this.width / 10);
+	      button.position(1 * this.height / 8, 4 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#first-button').on('click', (function () {
 	        _this2.setGameState(1, 1);
@@ -14346,7 +14531,7 @@
 	      var button = this.sketch.createButton("Start Level 2");
 	      button.id('second-button');
 	      button['class']('button');
-	      button.position(3 * this.height / 8, 5 * this.width / 10);
+	      button.position(1 * this.height / 8, 5 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#second-button').on('click', (function () {
 	        _this3.setGameState(1, 2);
@@ -14355,20 +14540,47 @@
 	      }).bind(this));
 	    }
 	  }, {
+	    key: 'makeThirdButton',
+	    value: function makeThirdButton() {
+	      var _this4 = this;
+
+	      var button = this.sketch.createButton("Start Level 3");
+	      button.id('third-button');
+	      button['class']('button');
+	      button.position(1 * this.height / 8, 6 * this.width / 10);
+	      button.size(3 / 7 * this.width, this.height / 30);
+	      $('#third-button').on('click', (function () {
+	        _this4.setGameState(1, 3);
+	        _this4.removeButtons();
+	        _this4.gameLoop();
+	      }).bind(this));
+	    }
+	  }, {
 	    key: 'makeHelpButton',
 	    value: function makeHelpButton() {
-	      var _this4 = this;
+	      var _this5 = this;
 
 	      var button = this.sketch.createButton("Help");
 	      button.id('help-button');
 	      button['class']('button');
-	      button.position(3 * this.height / 8, 7 * this.width / 10);
+	      button.position(1 * this.height / 8, 7 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#help-button').on('click', (function () {
-	        _this4.inGame.state = 4;
-	        _this4.removeButtons();
-	        _this4.gameLoop();
+	        _this5.inGame.state = 4;
+	        _this5.removeButtons();
+	        _this5.gameLoop();
 	      }).bind(this));
+	    }
+	  }, {
+	    key: 'generateStarBackground',
+	    value: function generateStarBackground(n) {
+	      var stars = [];
+	      for (var i = 0; i < n; i++) {
+	        var randX = Math.random() * this.height;
+	        var randY = Math.random() * this.width;
+	        stars.push([randX, randY]);
+	      }
+	      return stars;
 	    }
 	  }, {
 	    key: 'display',
@@ -14377,11 +14589,19 @@
 	      this.makeSecondButton();
 	      this.makeHelpButton();
 	      this.makeZerothButton();
+	      this.makeThirdButton();
 	      this.sketch.draw = (function () {
+	        var _this6 = this;
+
+	        this.sketch.textFont("Courier");
 	        this.sketch.background(0, 0, 0);
-	        this.sketch.fill(26, 255, 20);
+	        this.sketch.fill(200, 200, 200);
+	        this.stars.forEach(function (star) {
+	          return _this6.sketch.ellipse(star[0], star[1], 3, 3);
+	        });
+	        this.sketch.fill(64, 163, 67);
 	        this.sketch.textSize(65);
-	        this.sketch.text('PIRATE RACER DESTROYER', 2 * this.height / 8, 2 * this.width / 10);
+	        this.sketch.text('SPACE PIRATES : DESTROYER', 1 * this.height / 8, 2 * this.width / 10);
 	      }).bind(this);
 	    }
 	  }]);
@@ -14392,7 +14612,7 @@
 	module.exports = NewGame;
 
 /***/ },
-/* 23 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -24240,7 +24460,7 @@
 
 
 /***/ },
-/* 24 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -24249,7 +24469,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var $ = __webpack_require__(23);
+	var $ = __webpack_require__(24);
 
 	var EndGame = (function () {
 	  function EndGame(sketch, gameLoop, inGame, width, height) {
@@ -24264,6 +24484,7 @@
 	    this.inGame = inGame;
 	    this.width = width;
 	    this.height = height;
+	    this.stars = this.generateStarBackground(250);
 	  }
 
 	  _createClass(EndGame, [{
@@ -24274,7 +24495,7 @@
 	      var button = this.sketch.createButton("Play Again");
 	      button.id('play-again-button');
 	      button['class']('button');
-	      button.position(3 * this.height / 8, 3 * this.width / 11);
+	      button.position(0.5 * this.height / 8, 3 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#play-again-button').on('click', (function () {
 	        _this.inGame.state = 2;
@@ -24284,24 +24505,40 @@
 	      }).bind(this));
 	    }
 	  }, {
+	    key: 'generateStarBackground',
+	    value: function generateStarBackground(n) {
+	      var stars = [];
+	      for (var i = 0; i < n; i++) {
+	        var randX = Math.random() * this.height;
+	        var randY = Math.random() * this.width;
+	        stars.push([randX, randY]);
+	      }
+	      return stars;
+	    }
+	  }, {
 	    key: 'display',
 	    value: function display() {
 	      this.makePlayAgainButton();
 	      this.sketch.draw = (function () {
 	        var _this2 = this;
 
+	        this.sketch.textFont("Courier");
 	        this.sketch.background(0, 0, 0);
-	        this.sketch.fill(26, 255, 20);
+	        this.sketch.fill(200, 200, 200);
+	        this.stars.forEach(function (star) {
+	          return _this2.sketch.ellipse(star[0], star[1], 3, 3);
+	        });
+	        this.sketch.fill(64, 163, 67);
 	        this.sketch.textSize(65);
 	        this.sketch.textSize(65);
-	        this.sketch.text('' + this.inGame.end_status, 10 * this.width / 15, this.height / 10);
+	        this.sketch.text('' + this.inGame.end_status, 0.5 * this.height / 8, 2 * this.width / 10);
 	        this.sketch.textSize(25);
-	        this.sketch.text('Your final score:  ' + this.mostRecent.wealth + '.  Your final time: ' + this.mostRecent.time, 21 * this.width / 30, 8 * this.height / 40);
+	        this.sketch.text('Your final score:  ' + this.mostRecent.wealth + '.  Your final time: ' + this.mostRecent.time, 3 * this.height / 8, 3.5 * this.width / 10);
 	        this.sketch.textSize(45);
-	        this.sketch.text('Previous plays:', 21 * this.width / 30, 10 * this.height / 40);
+	        this.sketch.text('Previous plays:', 0.5 * this.height / 8, 10 * this.height / 40);
 	        this.sketch.textSize(25);
 	        this.formattedScores.slice(0, 5).forEach(function (score, index) {
-	          _this2.sketch.text(index + 1 + '. Level => ' + score.level + '  ||  Wealth => ' + score.wealth + '  ||  Time => ' + score.time + '  ||  Outcome => ' + score.result, 21 * _this2.width / 30, 5 * _this2.height / 20 + _this2.height / 25 * (index + 1));
+	          _this2.sketch.text(index + 1 + '. Level => ' + score.level + '   Wealth => ' + score.wealth + '   Time => ' + score.time + '   Outcome => ' + score.result, 0.5 * _this2.height / 8, 5 * _this2.height / 20 + _this2.height / 25 * (index + 1));
 	        });
 	      }).bind(this);
 	    }
@@ -24329,7 +24566,7 @@
 	module.exports = EndGame;
 
 /***/ },
-/* 25 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -24338,7 +24575,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var $ = __webpack_require__(23);
+	var $ = __webpack_require__(24);
 
 	var HelpGame = (function () {
 	  function HelpGame(sketch, gameLoop, inGame, width, height) {
@@ -24349,6 +24586,7 @@
 	    this.inGame = inGame;
 	    this.width = width;
 	    this.height = height;
+	    this.stars = this.generateStarBackground(250);
 	  }
 
 	  _createClass(HelpGame, [{
@@ -24356,11 +24594,11 @@
 	    value: function makeToNewGameButton() {
 	      var _this = this;
 
-	      var button = this.sketch.createButton("Got it! Let's play");
+	      var button = this.sketch.createButton("Got it! Let's DESTROY");
 	      button.id('new-game-button');
 	      button['class']('button');
-	      button.position(10 * this.height / 24, 4 * this.width / 13);
-	      button.size(2 / 7 * this.width, this.height / 30);
+	      button.position(1 * this.height / 8, 3 * this.width / 10);
+	      button.size(5 / 7 * this.width, this.height / 30);
 	      $('#new-game-button').on('click', (function () {
 	        _this.inGame.state = 2;
 	        $('#new-game-button').remove();
@@ -24368,32 +24606,51 @@
 	      }).bind(this));
 	    }
 	  }, {
+	    key: 'generateStarBackground',
+	    value: function generateStarBackground(n) {
+	      var stars = [];
+	      for (var i = 0; i < n; i++) {
+	        var randX = Math.random() * this.height;
+	        var randY = Math.random() * this.width;
+	        stars.push([randX, randY]);
+	      }
+	      return stars;
+	    }
+	  }, {
 	    key: 'display',
 	    value: function display() {
 	      this.makeToNewGameButton();
 	      this.sketch.draw = (function () {
+	        var _this2 = this;
+
+	        this.sketch.textFont("Courier");
 	        this.sketch.background(0, 0, 0);
+	        this.sketch.fill(200, 200, 200);
+	        this.stars.forEach(function (star) {
+	          return _this2.sketch.ellipse(star[0], star[1], 3, 3);
+	        });
+	        this.sketch.fill(64, 163, 67);
+
 	        this.sketch.textSize(60);
-	        // this.sketch.text('Help and Controls', 3*(this.height)/8, 2*(this.width)/10);
-	        this.sketch.text('Help and Controls', 3 * this.height / 8, 2 * this.width / 10);
+	        this.sketch.text('Help and Controls', 1 * this.height / 8, 2 * this.width / 10);
 	        this.sketch.textSize(20);
-	        this.sketch.text('W:  Forward thrust', 7 * this.width / 14, 6 * this.height / 30);
-	        this.sketch.text('S:  Backward thrust', 7 * this.width / 14, 7 * this.height / 30);
-	        this.sketch.text('A:  Rotate left', 7 * this.width / 14, 8 * this.height / 30);
-	        this.sketch.text('D:  Rotate right', 7 * this.width / 14, 9 * this.height / 30);
-	        this.sketch.text('L:  Rotate up', 7 * this.width / 14, 10 * this.height / 30);
-	        this.sketch.text('O:  Rotate down', 7 * this.width / 14, 11 * this.height / 30);
-	        this.sketch.text('K:  Roll left', 7 * this.width / 14, 12 * this.height / 30);
-	        this.sketch.text(';:  Roll right', 7 * this.width / 14, 13 * this.height / 30);
-	        this.sketch.text('F:  Orient towards direction of travel', 2 * 8 * this.width / 14, 6 * this.height / 30);
-	        this.sketch.text('J:  Orient towards closest point box', 2 * 8 * this.width / 14, 7 * this.height / 30);
-	        this.sketch.text('G:  End current game', 2 * 8 * this.width / 14, 8 * this.height / 30);
-	        this.sketch.text('Space Bar:  Fire weapon', 2 * 8 * this.width / 14, 9 * this.height / 30);
+	        this.sketch.text('W:  Forward thrust', 1 * this.height / 8, 6 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('S:  Backward thrust', 1 * this.height / 8, 7 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('A:  Rotate left', 1 * this.height / 8, 8 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('D:  Rotate right', 1 * this.height / 8, 9 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('L:  Rotate up', 1 * this.height / 8, 10 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('O:  Rotate down', 1 * this.height / 8, 11 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('K:  Roll left', 1 * this.height / 8, 12 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text(';:  Roll right', 1 * this.height / 8, 13 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('F:  Orient towards direction of travel', 3 * this.height / 8, 6 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('J:  Orient towards closest point box', 3 * this.height / 8, 7 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('G:  End current game', 3 * this.height / 8, 8 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('Space Bar:  Fire weapon', 3 * this.height / 8, 9 * this.width / 24 + 6 * this.width / 24);
 
 	        this.sketch.textSize(22);
-	        this.sketch.text('Collect yellow "wealth" boxes by hitting them or shooting them.', 2 * 8 * this.width / 14, 10 * this.height / 30);
-	        this.sketch.text('Red "mine" boxes will explode when you hit them.', 2 * 8 * this.width / 14, 11 * this.height / 30);
-	        this.sketch.text('White "turret" boxes will shoot back!', 2 * 8 * this.width / 14, 12 * this.height / 30);
+	        this.sketch.text('Collect yellow "wealth" boxes by hitting them or shooting them.', 1 * this.height / 8, 15 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('Red "mine" boxes will explode when you hit them.', 1 * this.height / 8, 16 * this.width / 24 + 6 * this.width / 24);
+	        this.sketch.text('White "turret" boxes will shoot back!', 1 * this.height / 8, 17 * this.width / 24 + 6 * this.width / 24);
 	      }).bind(this);
 	    }
 	  }]);
