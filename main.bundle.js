@@ -49,15 +49,16 @@
 	var P5 = __webpack_require__(1);
 	var Dimensions = __webpack_require__(2);
 	var DisplayGame = __webpack_require__(3);
-	var NewGame = __webpack_require__(25);
-	var EndGame = __webpack_require__(27);
-	var HelpGame = __webpack_require__(28);
+	var NewGame = __webpack_require__(22);
+	var EndGame = __webpack_require__(24);
+	var HelpGame = __webpack_require__(25);
 	var s = function s(sketch) {
 	  var height = Dimensions.height;
 	  var width = Dimensions.width;
 	  var inGame = { state: 2, level: 0, scores: [], end_status: "" };
 
 	  sketch.setup = function () {
+	    // localStorage.setItem('scores', JSON.stringify(""));
 	    sketch.frameRate(20);
 	    sketch.createCanvas(height, width);
 	  };
@@ -12812,7 +12813,7 @@
 
 	"use strict";
 
-	module.exports = { width: 15 / 16 * window.outerHeight, height: 75 / 76 * window.outerWidth };
+	module.exports = { width: 13 / 16 * window.outerHeight, height: 75 / 76 * window.outerWidth };
 
 /***/ },
 /* 3 */
@@ -12826,8 +12827,8 @@
 
 	var Vector = __webpack_require__(4);
 	var Player = __webpack_require__(5);
-	var Game = __webpack_require__(14);
-	var Cockpit = __webpack_require__(24);
+	var Game = __webpack_require__(13);
+	var Cockpit = __webpack_require__(21);
 
 	var DisplayGame = (function () {
 	  function DisplayGame(sketch, gameLoop, inGame, width, height) {
@@ -12850,7 +12851,7 @@
 	      if (this.game.win) {
 	        this.inGame.end_status = "You Won!";
 	      } else {
-	        this.inGame.end_status = "Sorry, you lost.";
+	        this.inGame.end_status = "Sorry, you died.";
 	      }
 	    }
 	  }, {
@@ -12865,9 +12866,21 @@
 	        cockpit.display(game.player, this.timer);
 
 	        if (this.gameOver) {
+	          var scores = JSON.parse(localStorage.getItem('scores'));
+	          if (scores === null) {
+	            scores = [];
+	          }
+	          // debugger
+	          var result = "Loss";
+	          if (this.game.win) {
+	            result = "Win";
+	          }
+	          // debugger
+	          scores.push({ result: result, level: this.inGame.level, wealth: game.player.wealth, time: this.timer });
+	          localStorage.setItem('scores', JSON.stringify(scores));
+
 	          this.inGame.state = 3;
 	          this.inGame.level = 0;
-	          this.inGame.scores.push(game.player.wealth);
 	          this.setEndGameStatus();
 	          this.gameLoop();
 	        }
@@ -12987,9 +13000,8 @@
 
 	var Vector = __webpack_require__(4);
 	var Dimensions = __webpack_require__(2);
-	var CollisionSphere = __webpack_require__(6);
-	var CollisionBox = __webpack_require__(7);
-	var Bullet = __webpack_require__(8);
+	var CollisionBox = __webpack_require__(6);
+	var Bullet = __webpack_require__(7);
 
 	var Player = (function () {
 	  function Player(loc, head, off, theta, phi, collRadius) {
@@ -13022,6 +13034,17 @@
 	      var location = this.loc.plus(this.momentum).plus(this.head.scaledBy(5)).plus(this.u.scaledBy(side * 4)).minus(this.v.scaledBy(4));
 	      var heading = this.head.unit;
 	      return new Bullet(location, heading, this.speed + 45, 1, this.u);
+	    }
+	  }, {
+	    key: 'moveForward',
+	    value: function moveForward() {
+	      this.loc = this.loc.plus(this.head);
+	      this.momentum = this.momentum.scaledBy(0.94).plus(this.head.scaledBy(0.45));
+	    }
+	  }, {
+	    key: 'moveBackward',
+	    value: function moveBackward() {
+	      this.momentum = this.momentum.scaledBy(0.94).minus(this.head.scaledBy(0.35));
 	    }
 	  }, {
 	    key: 'updateVecs',
@@ -13140,36 +13163,6 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var CollisionSphere = (function () {
-	  function CollisionSphere(loc, radius) {
-	    _classCallCheck(this, CollisionSphere);
-
-	    this.loc = loc;
-	    this.radius = radius;
-	  }
-
-	  _createClass(CollisionSphere, [{
-	    key: "generalCollisionDetected",
-	    value: function generalCollisionDetected(sphere) {
-	      return this.loc.dist(sphere.loc) < sphere.radius + this.radius;
-	    }
-	  }]);
-
-	  return CollisionSphere;
-	})();
-
-	module.exports = CollisionSphere;
-
-/***/ },
-/* 7 */
-/***/ function(module, exports) {
-
-	"use strict";
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 	var CollisionBox = (function () {
 	  function CollisionBox(loc, width) {
 	    _classCallCheck(this, CollisionBox);
@@ -13199,7 +13192,7 @@
 	module.exports = CollisionBox;
 
 /***/ },
-/* 8 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13208,7 +13201,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var ObstacleBuilder = __webpack_require__(9);
+	var ObstacleBuilder = __webpack_require__(8);
 
 	var Bullet = (function () {
 	  function Bullet(loc, head, speed, damage, u) {
@@ -13220,7 +13213,7 @@
 	    this.damage = damage;
 	    this.prevLoc = loc;
 	    this.originalLoc = loc;
-	    this.range = 1500;
+	    this.range = 400;
 	    this.u = u;
 	    this.obstacle = new ObstacleBuilder().bulletObstacle(this.loc, this.head, this.u);
 	  }
@@ -13253,7 +13246,7 @@
 	      var x0 = entity.loc;
 	      var x1 = this.loc;
 	      var x2 = this.prevLoc;
-	      var num = x0.minus(x1).cross(x1.minus(x0)).mag();
+	      var num = x0.minus(x1).cross(x0.minus(x2)).mag();
 	      var denom = x2.minus(x1).mag();
 	      return num / denom;
 	    }
@@ -13275,7 +13268,7 @@
 	module.exports = Bullet;
 
 /***/ },
-/* 9 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13285,10 +13278,10 @@
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 	var Vector = __webpack_require__(4);
-	var Point = __webpack_require__(10);
-	var Edge = __webpack_require__(11);
-	var Face = __webpack_require__(12);
-	var Obstacle = __webpack_require__(13);
+	var Point = __webpack_require__(9);
+	var Edge = __webpack_require__(10);
+	var Face = __webpack_require__(11);
+	var Obstacle = __webpack_require__(12);
 
 	var ObstacleBuilder = (function () {
 	  function ObstacleBuilder() {
@@ -13369,7 +13362,7 @@
 	module.exports = ObstacleBuilder;
 
 /***/ },
-/* 10 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13434,7 +13427,7 @@
 	module.exports = Point;
 
 /***/ },
-/* 11 */
+/* 10 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -13494,7 +13487,7 @@
 	module.exports = Edge;
 
 /***/ },
-/* 12 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13503,7 +13496,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var Point = __webpack_require__(10);
+	var Point = __webpack_require__(9);
 
 	var Face = (function () {
 	  function Face(pointWiseEdges, loc) {
@@ -13558,12 +13551,10 @@
 	  return Face;
 	})();
 
-	;
-
 	module.exports = Face;
 
 /***/ },
-/* 13 */
+/* 12 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -13607,7 +13598,7 @@
 	module.exports = Obstacle;
 
 /***/ },
-/* 14 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13616,9 +13607,9 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var PlayerControls = __webpack_require__(15);
-	var LevelLibrary = __webpack_require__(16);
-	var StarBuilder = __webpack_require__(23);
+	var PlayerControls = __webpack_require__(14);
+	var LevelLibrary = __webpack_require__(15);
+	var StarBuilder = __webpack_require__(20);
 
 	var Game = (function () {
 	  function Game(player, level, sketch) {
@@ -13766,7 +13757,7 @@
 	module.exports = Game;
 
 /***/ },
-/* 15 */
+/* 14 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -13804,11 +13795,10 @@
 	    key: "control",
 	    value: function control(sketch) {
 	      if (sketch.keyIsDown(this.dict["w"])) {
-	        this.player.loc = this.player.loc.plus(this.player.head);
-	        this.player.momentum = this.player.momentum.scaledBy(0.94).plus(this.player.head.scaledBy(0.45));
+	        this.player.moveForward();
 	      }
 	      if (sketch.keyIsDown(this.dict["s"])) {
-	        this.player.momentum = this.player.momentum.minus(this.player.head.scaledBy(0.25));
+	        this.player.moveBackward();
 	      }
 	      if (sketch.keyIsDown(this.dict["a"])) {
 	        this.player.rotateOnV(-0.05);
@@ -13858,7 +13848,7 @@
 	module.exports = PlayerControls;
 
 /***/ },
-/* 16 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13868,11 +13858,11 @@
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 	var Vector = __webpack_require__(4);
-	var Mine = __webpack_require__(17);
-	var Booty = __webpack_require__(18);
-	var Turret = __webpack_require__(19);
-	var Mothership = __webpack_require__(20);
-	var Message = __webpack_require__(22);
+	var Mine = __webpack_require__(16);
+	var Booty = __webpack_require__(17);
+	var Turret = __webpack_require__(18);
+	// const Mothership = require('./mothership');
+	var Message = __webpack_require__(19);
 
 	var LevelLibrary = (function () {
 	  function LevelLibrary() {
@@ -13892,6 +13882,25 @@
 	        case 3:
 	          break;
 	      }
+	    }
+	  }, {
+	    key: 'randomEntity',
+	    value: function randomEntity(distance, width, EntityClass) {
+	      var r = 2 * Math.random() + 0.25;
+	      var x = 2 * Math.random() - 1;
+	      var y = 2 * Math.random() - 1;
+	      var z = 2 * Math.random() - 1;
+	      var loc = new Vector(x, y, z).unit.scaledBy(r * distance);
+	      return new EntityClass(loc, 0, width, 200);
+	    }
+	  }, {
+	    key: 'seedRandomEntities',
+	    value: function seedRandomEntities(distance, width, number, EntityClass) {
+	      var entities = [];
+	      for (var i = 0; i < number; i++) {
+	        entities.push(this.randomEntity(distance, width, EntityClass));
+	      }
+	      return entities;
 	    }
 	  }, {
 	    key: 'level0',
@@ -13914,31 +13923,13 @@
 	  }, {
 	    key: 'level2',
 	    get: function get() {
-	      // var width = 400;
-	      // var count = 10;
-	      // var x = 400;
-	      // var y = -6000;
-	      // var z = 2200;
-	      // var mS = new Mothership(width, count, x, y, z);
-	      var mines = [new Mine(new Vector(700, 30, 0), 8, 35)];
+	      var mines = this.seedRandomEntities(200, 40, 17, Mine);
 
-	      // new Mine(new Vector(410,30,200), 6, 20),
-	      // new Mine(new Vector(310,30,200), 6, 20),
-	      // new Mine(new Vector(210,30,200), 6, 20),
-	      // new Mine(new Vector(110,30,200), 6, 20),
-	      // new Mine(new Vector(10,30,200), 6, 20),
-	      // new Mine(new Vector(-90,30,200), 6, 20),
-	      var booty = [
-	      //hardUp
-	      new Booty(new Vector(150, 0, 0), 6, 10, 10), new Booty(new Vector(250, 0, 0), 6, 10, 10), new Booty(new Vector(350, 0, 0), 6, 10, 10), new Booty(new Vector(450, 0, 0), 6, 10, 10), new Booty(new Vector(550, 0, 0), 6, 10, 10), new Booty(new Vector(650, 0, 0), 6, 10, 10), new Booty(new Vector(620, 0, 50), 6, 10, 10), new Booty(new Vector(600, 0, 100), 10, 13, 10), new Booty(new Vector(580, 0, 150), 10, 13, 10), new Booty(new Vector(560, 0, 200), 10, 13, 10), new Booty(new Vector(560, 0, 300), 10, 13, 10), new Booty(new Vector(560, 0, 400), 10, 13, 10), new Booty(new Vector(560, 0, 500), 10, 13, 10),
-	      // turret tunnel
-	      new Booty(new Vector(560, 0, 600), 10, 13, 10), new Booty(new Vector(560, 0, 700), 10, 13, 10), new Booty(new Vector(560, 0, 800), 10, 13, 10), new Booty(new Vector(560, 0, 900), 10, 13, 10), new Booty(new Vector(560, 0, 1000), 10, 13, 10), new Booty(new Vector(560, 0, 1100), 10, 13, 10), new Booty(new Vector(560, 0, 1200), 10, 13, 10)];
+	      var booty = this.seedRandomEntities(200, 10, 12, Booty);
 
-	      var turrets = [new Turret(new Vector(560, 50, 850), 6, 10, 10), new Turret(new Vector(560, 50, 1050), 6, 10, 10)];
+	      var turrets = [new Turret(new Vector(425, 0, 0), 0, 30), new Turret(new Vector(-425, 0, 0), 0, 30), new Turret(new Vector(0, 425, 0), 0, 30), new Turret(new Vector(0, -425, 0), 0, 30), new Turret(new Vector(0, 0, 425), 0, 30), new Turret(new Vector(0, 0, -425), 0, 30)];
 
-	      var mS = new Mothership();
-	      // return { mines: mines, booty: booty, turrets: turrets, mothership: [], messages: [] };
-	      return { mines: mines, booty: booty, turrets: mS.turrets, mothership: mS.ship, messages: [] };
+	      return { mines: mines, booty: booty, turrets: turrets, mothership: [], messages: [] };
 	    }
 	  }]);
 
@@ -13948,7 +13939,7 @@
 	module.exports = LevelLibrary;
 
 /***/ },
-/* 17 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13957,8 +13948,8 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var CollisionBox = __webpack_require__(7);
-	var ObstacleBuilder = __webpack_require__(9);
+	var CollisionBox = __webpack_require__(6);
+	var ObstacleBuilder = __webpack_require__(8);
 
 	var Mine = (function () {
 	  function Mine(loc, radius, width) {
@@ -13988,7 +13979,7 @@
 	module.exports = Mine;
 
 /***/ },
-/* 18 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -13997,8 +13988,8 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var CollisionBox = __webpack_require__(7);
-	var ObstacleBuilder = __webpack_require__(9);
+	var CollisionBox = __webpack_require__(6);
+	var ObstacleBuilder = __webpack_require__(8);
 
 	var Booty = (function () {
 	  function Booty(loc, radius, width, value) {
@@ -14034,7 +14025,7 @@
 	module.exports = Booty;
 
 /***/ },
-/* 19 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -14043,9 +14034,9 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var CollisionBox = __webpack_require__(7);
-	var ObstacleBuilder = __webpack_require__(9);
-	var Bullet = __webpack_require__(8);
+	var CollisionBox = __webpack_require__(6);
+	var ObstacleBuilder = __webpack_require__(8);
+	var Bullet = __webpack_require__(7);
 	var Vector = __webpack_require__(4);
 
 	var Turret = (function () {
@@ -14055,7 +14046,7 @@
 	    this.loc = loc;
 	    this.collSphere = new CollisionBox(loc, width);
 	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, [170, 170, 170]);
-	    this.health = 2;
+	    this.health = 5;
 	    this.timer = 0;
 	  }
 
@@ -14106,7 +14097,7 @@
 	module.exports = Turret;
 
 /***/ },
-/* 20 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -14115,152 +14106,8 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var ObstacleBuilder = __webpack_require__(9);
-	var Vector = __webpack_require__(4);
-	var ShipBody = __webpack_require__(21);
-	var Turret = __webpack_require__(19);
-
-	var Mothership = (function () {
-	  function Mothership() {
-	    var width = arguments.length <= 0 || arguments[0] === undefined ? 1000 : arguments[0];
-	    var count = arguments.length <= 1 || arguments[1] === undefined ? 10 : arguments[1];
-	    var x = arguments.length <= 2 || arguments[2] === undefined ? 1000 : arguments[2];
-	    var y = arguments.length <= 3 || arguments[3] === undefined ? -6000 : arguments[3];
-	    var z = arguments.length <= 4 || arguments[4] === undefined ? 2200 : arguments[4];
-
-	    _classCallCheck(this, Mothership);
-
-	    this.build = new ObstacleBuilder();
-	    this.width = width;
-	    this.count = count;
-	    this.cornerX = x;
-	    this.cornerY = y;
-	    this.cornerZ = z;
-	  }
-
-	  _createClass(Mothership, [{
-	    key: 'bodyPipe',
-	    get: function get() {
-	      var body = [];
-	      for (var i = 0; i < this.count; i++) {
-	        var center = new Vector(this.cornerX + this.width / 2 + i * this.width, this.cornerY - this.width / 2, this.cornerZ);
-	        body.push(new ShipBody(center, this.width));
-	      }
-	      for (var j = 1; j < this.count - 6; j++) {
-	        var center2 = new Vector(this.cornerX + this.width / 2 + j * this.width, this.cornerY + this.width / 2, this.cornerZ + this.width);
-	        body.push(new ShipBody(center2, this.width));
-	      }
-	      for (var j = 5; j < this.count - 3; j++) {
-	        var center3 = new Vector(this.cornerX + this.width / 2 + j * this.width, this.cornerY + this.width / 2, this.cornerZ);
-	        body.push(new ShipBody(center3, this.width));
-	      }
-	      for (var k = 1; k < this.count - 6; k++) {
-	        var center4 = new Vector(this.cornerX + this.width / 2 + k * this.width, this.cornerY - 3 * this.width / 2, this.cornerZ - this.width);
-	        body.push(new ShipBody(center4, this.width));
-	      }
-	      for (var k = 5; k < this.count - 3; k++) {
-	        var center5 = new Vector(this.cornerX + this.width / 2 + k * this.width, this.cornerY - 1 * this.width / 2, this.cornerZ - this.width);
-	        body.push(new ShipBody(center5, this.width));
-	      }
-	      for (var l = 2; l < this.count - 5; l++) {
-	        var center6 = new Vector(this.cornerX + this.width / 2 + l * this.width, this.cornerY - 3 * this.width / 2, this.cornerZ + this.width);
-	        body.push(new ShipBody(center6, this.width));
-	      }
-	      return body;
-	    }
-	  }, {
-	    key: 'bodyTurrets',
-	    get: function get() {
-	      var turrets = [];
-	      for (var i = 0; i < this.count - 5; i++) {
-	        var center = new Vector(this.cornerX + this.width / 2 + i * this.width, this.cornerY - this.width / 2, this.cornerZ);
-	        var top = center.plus(new Vector(0, 0, this.width / 2));
-	        var left = center.plus(new Vector(0, -this.width / 2, 0));
-	        var right = center.plus(new Vector(0, this.width / 2, 0));
-	        var bottom = center.plus(new Vector(0, 0, -this.width / 2));
-	        turrets.push(new Turret(top, this.width / 15 + 5, this.width / 15));
-	        turrets.push(new Turret(left, this.width / 15 + 5, this.width / 15));
-	        turrets.push(new Turret(right, this.width / 15 + 5, this.width / 15));
-	        turrets.push(new Turret(bottom, this.width / 15 + 5, this.width / 15));
-	      }
-	      return turrets;
-	    }
-	  }, {
-	    key: 'frontFace',
-	    get: function get() {
-	      return [];
-	    }
-	  }, {
-	    key: 'ship',
-	    get: function get() {
-	      return this.bodyPipe;
-	    }
-	  }, {
-	    key: 'turrets',
-	    get: function get() {
-	      return this.bodyTurrets;
-	    }
-	  }]);
-
-	  return Mothership;
-	})();
-
-	module.exports = Mothership;
-
-/***/ },
-/* 21 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var CollisionBox = __webpack_require__(7);
-	var ObstacleBuilder = __webpack_require__(9);
-
-	var ShipBody = (function () {
-	  function ShipBody(loc, width) {
-	    var color = arguments.length <= 2 || arguments[2] === undefined ? [65, 65, 65] : arguments[2];
-
-	    _classCallCheck(this, ShipBody);
-
-	    this.loc = loc;
-	    this.collSphere = new CollisionBox(loc, width);
-	    this.obstacle = new ObstacleBuilder().cubeObstacle(loc, width, color);
-	    this.health = 100;
-	  }
-
-	  _createClass(ShipBody, [{
-	    key: 'inCollisionWith',
-	    value: function inCollisionWith(player) {
-	      return this.collSphere.generalCollisionDetected(player.collSphere);
-	    }
-	  }, {
-	    key: 'detonate',
-	    value: function detonate(player) {
-	      player.health = 0;
-	    }
-	  }]);
-
-	  return ShipBody;
-	})();
-
-	module.exports = ShipBody;
-
-/***/ },
-/* 22 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-	var CollisionBox = __webpack_require__(7);
-	var ObstacleBuilder = __webpack_require__(9);
+	var CollisionBox = __webpack_require__(6);
+	var ObstacleBuilder = __webpack_require__(8);
 
 	var Message = (function () {
 	  function Message(loc, width, alertMessage) {
@@ -14290,7 +14137,7 @@
 	module.exports = Message;
 
 /***/ },
-/* 23 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -14300,7 +14147,7 @@
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 	var Vector = __webpack_require__(4);
-	var Point = __webpack_require__(10);
+	var Point = __webpack_require__(9);
 
 	var StarBuilder = (function () {
 	  function StarBuilder(n) {
@@ -14344,7 +14191,7 @@
 	module.exports = StarBuilder;
 
 /***/ },
-/* 24 */
+/* 21 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -14413,7 +14260,7 @@
 	      sketch.text("Health: " + player.health, 5 / 12 * width, 14 / 20 * height);
 	      sketch.text("Wealth: " + player.wealth, 5 / 12 * width, 15 / 20 * height);
 	      sketch.text("Speed: " + player.speed, 5 / 12 * width, 16 / 20 * height);
-	      sketch.text("Timer: " + timer / 10, 5 / 12 * width, 17 / 20 * height);
+	      sketch.text("Timer: " + timer / 20, 5 / 12 * width, 17 / 20 * height);
 	    }
 	  }]);
 
@@ -14423,7 +14270,7 @@
 	module.exports = Cockpit;
 
 /***/ },
-/* 25 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -14432,7 +14279,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var $ = __webpack_require__(26);
+	var $ = __webpack_require__(23);
 
 	var NewGame = (function () {
 	  function NewGame(sketch, gameLoop, inGame, width, height) {
@@ -14467,7 +14314,7 @@
 	      var button = this.sketch.createButton("Start Tutorial");
 	      button.id('zero-button');
 	      button['class']('button');
-	      button.position(550, 2 * this.height / 10);
+	      button.position(3 * this.height / 8, 3 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#zero-button').on('click', (function () {
 	        _this.setGameState(1, 0);
@@ -14483,7 +14330,7 @@
 	      var button = this.sketch.createButton("Start Level 1");
 	      button.id('first-button');
 	      button['class']('button');
-	      button.position(550, 4 * this.width / 10);
+	      button.position(3 * this.height / 8, 4 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#first-button').on('click', (function () {
 	        _this2.setGameState(1, 1);
@@ -14499,7 +14346,7 @@
 	      var button = this.sketch.createButton("Start Level 2");
 	      button.id('second-button');
 	      button['class']('button');
-	      button.position(550, 5 * this.width / 10);
+	      button.position(3 * this.height / 8, 5 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#second-button').on('click', (function () {
 	        _this3.setGameState(1, 2);
@@ -14515,7 +14362,7 @@
 	      var button = this.sketch.createButton("Help");
 	      button.id('help-button');
 	      button['class']('button');
-	      button.position(550, 7 * this.width / 10);
+	      button.position(3 * this.height / 8, 7 * this.width / 10);
 	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#help-button').on('click', (function () {
 	        _this4.inGame.state = 4;
@@ -14534,7 +14381,7 @@
 	        this.sketch.background(0, 0, 0);
 	        this.sketch.fill(26, 255, 20);
 	        this.sketch.textSize(65);
-	        this.sketch.text('PIRATE RACER DESTROYER', this.width / 3, this.height / 6);
+	        this.sketch.text('PIRATE RACER DESTROYER', 2 * this.height / 8, 2 * this.width / 10);
 	      }).bind(this);
 	    }
 	  }]);
@@ -14545,7 +14392,7 @@
 	module.exports = NewGame;
 
 /***/ },
-/* 26 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -24393,7 +24240,7 @@
 
 
 /***/ },
-/* 27 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -24402,12 +24249,16 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var $ = __webpack_require__(26);
+	var $ = __webpack_require__(23);
 
 	var EndGame = (function () {
 	  function EndGame(sketch, gameLoop, inGame, width, height) {
+	    var scores = arguments.length <= 5 || arguments[5] === undefined ? JSON.parse(localStorage.getItem('scores')) : arguments[5];
+
 	    _classCallCheck(this, EndGame);
 
+	    this.scores = scores;
+	    this.formattedScores = this.sortedFormattedScores;
 	    this.sketch = sketch;
 	    this.gameLoop = gameLoop;
 	    this.inGame = inGame;
@@ -24422,8 +24273,9 @@
 
 	      var button = this.sketch.createButton("Play Again");
 	      button.id('play-again-button');
-	      button.position(this.width / 2, this.height / 5);
-	      button.size(6 / 7 * this.width, this.height / 50);
+	      button['class']('button');
+	      button.position(3 * this.height / 8, 3 * this.width / 11);
+	      button.size(3 / 7 * this.width, this.height / 30);
 	      $('#play-again-button').on('click', (function () {
 	        _this.inGame.state = 2;
 	        _this.inGame.level = 0;
@@ -24442,24 +24294,32 @@
 	        this.sketch.fill(26, 255, 20);
 	        this.sketch.textSize(65);
 	        this.sketch.textSize(65);
-	        this.sketch.text('' + this.inGame.end_status, this.width / 2, this.height / 6);
-	        this.sketch.textSize(55);
-	        this.sketch.text('Your final score:  ' + this.mostRecentScore, this.width / 2, this.height / 4);
+	        this.sketch.text('' + this.inGame.end_status, 10 * this.width / 15, this.height / 10);
+	        this.sketch.textSize(25);
+	        this.sketch.text('Your final score:  ' + this.mostRecent.wealth + '.  Your final time: ' + this.mostRecent.time, 21 * this.width / 30, 8 * this.height / 40);
 	        this.sketch.textSize(45);
-	        this.sketch.text('Top Scores: ', this.width / 2, this.height / 3);
-	        this.sketch.textSize(35);
-	        this.inGame.scores.sort(function (score1, score2) {
-	          return score2 - score1;
-	        }).forEach(function (score, index) {
-	          _this2.sketch.text(index + 1 + '- ' + score + ' Points', _this2.width / 2, _this2.height / 3 + _this2.height / 25 * (index + 1));
+	        this.sketch.text('Previous plays:', 21 * this.width / 30, 10 * this.height / 40);
+	        this.sketch.textSize(25);
+	        this.formattedScores.slice(0, 5).forEach(function (score, index) {
+	          _this2.sketch.text(index + 1 + '. Level => ' + score.level + '  ||  Wealth => ' + score.wealth + '  ||  Time => ' + score.time + '  ||  Outcome => ' + score.result, 21 * _this2.width / 30, 5 * _this2.height / 20 + _this2.height / 25 * (index + 1));
 	        });
 	      }).bind(this);
 	    }
 	  }, {
-	    key: 'mostRecentScore',
+	    key: 'sortedFormattedScores',
 	    get: function get() {
-	      var scores = this.inGame.scores;
-	      return scores[0];
+	      return this.scores.sort(function (s1, s2) {
+	        if (s2.level - s1.level !== 0) {
+	          return s2.level - s1.level;
+	        } else {
+	          return s2.wealth - s1.wealth;
+	        }
+	      });
+	    }
+	  }, {
+	    key: 'mostRecent',
+	    get: function get() {
+	      return this.scores[0];
 	    }
 	  }]);
 
@@ -24469,7 +24329,7 @@
 	module.exports = EndGame;
 
 /***/ },
-/* 28 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -24478,7 +24338,7 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-	var $ = __webpack_require__(26);
+	var $ = __webpack_require__(23);
 
 	var HelpGame = (function () {
 	  function HelpGame(sketch, gameLoop, inGame, width, height) {
@@ -24499,8 +24359,8 @@
 	      var button = this.sketch.createButton("Got it! Let's play");
 	      button.id('new-game-button');
 	      button['class']('button');
-	      button.position(550, this.height / 6);
-	      button.size(3 / 7 * this.width, this.height / 30);
+	      button.position(10 * this.height / 24, 4 * this.width / 13);
+	      button.size(2 / 7 * this.width, this.height / 30);
 	      $('#new-game-button').on('click', (function () {
 	        _this.inGame.state = 2;
 	        $('#new-game-button').remove();
@@ -24513,25 +24373,27 @@
 	      this.makeToNewGameButton();
 	      this.sketch.draw = (function () {
 	        this.sketch.background(0, 0, 0);
-	        this.sketch.textSize(65);
-	        this.sketch.text('Help and Controls', 5 * this.width / 9, this.height / 6);
-	        this.sketch.textSize(15);
-	        this.sketch.text('W: Forward thrust', 5 * this.width / 12, 6 * this.height / 24);
-	        this.sketch.text('S: Backward thrust', 5 * this.width / 12, 7 * this.height / 24);
-	        this.sketch.text('A: Rotate left', 5 * this.width / 12, 8 * this.height / 24);
-	        this.sketch.text('D: Rotate right', 5 * this.width / 12, 9 * this.height / 24);
-	        this.sketch.text('L: Rotate up', 5 * this.width / 12, 10 * this.height / 24);
-	        this.sketch.text('O: Rotate down', 5 * this.width / 12, 11 * this.height / 24);
-	        this.sketch.text('K: Roll left', 5 * this.width / 12, 12 * this.height / 24);
-	        this.sketch.text(';: Roll right', 5 * this.width / 12, 13 * this.height / 24);
-	        this.sketch.text('F: Orient towards direction of travel', 2 * 5 * this.width / 12, 6 * this.height / 24);
-	        this.sketch.text('J: Orient towards closest point box', 2 * 5 * this.width / 12, 7 * this.height / 24);
-	        this.sketch.text('Space Bar: Fire weapon', 2 * 5 * this.width / 12, 8 * this.height / 24);
+	        this.sketch.textSize(60);
+	        // this.sketch.text('Help and Controls', 3*(this.height)/8, 2*(this.width)/10);
+	        this.sketch.text('Help and Controls', 3 * this.height / 8, 2 * this.width / 10);
+	        this.sketch.textSize(20);
+	        this.sketch.text('W:  Forward thrust', 7 * this.width / 14, 6 * this.height / 30);
+	        this.sketch.text('S:  Backward thrust', 7 * this.width / 14, 7 * this.height / 30);
+	        this.sketch.text('A:  Rotate left', 7 * this.width / 14, 8 * this.height / 30);
+	        this.sketch.text('D:  Rotate right', 7 * this.width / 14, 9 * this.height / 30);
+	        this.sketch.text('L:  Rotate up', 7 * this.width / 14, 10 * this.height / 30);
+	        this.sketch.text('O:  Rotate down', 7 * this.width / 14, 11 * this.height / 30);
+	        this.sketch.text('K:  Roll left', 7 * this.width / 14, 12 * this.height / 30);
+	        this.sketch.text(';:  Roll right', 7 * this.width / 14, 13 * this.height / 30);
+	        this.sketch.text('F:  Orient towards direction of travel', 2 * 8 * this.width / 14, 6 * this.height / 30);
+	        this.sketch.text('J:  Orient towards closest point box', 2 * 8 * this.width / 14, 7 * this.height / 30);
+	        this.sketch.text('G:  End current game', 2 * 8 * this.width / 14, 8 * this.height / 30);
+	        this.sketch.text('Space Bar:  Fire weapon', 2 * 8 * this.width / 14, 9 * this.height / 30);
 
-	        this.sketch.textSize(18);
-	        this.sketch.text('Collect yellow "wealth" boxes by hitting them or shooting them.', 2 * 5 * this.width / 12, 10 * this.height / 24);
-	        this.sketch.text('Red "mine" boxes will explode when you hit them.', 2 * 5 * this.width / 12, 11 * this.height / 24);
-	        this.sketch.text('White "turret" boxes will shoot back!', 2 * 5 * this.width / 12, 12 * this.height / 24);
+	        this.sketch.textSize(22);
+	        this.sketch.text('Collect yellow "wealth" boxes by hitting them or shooting them.', 2 * 8 * this.width / 14, 10 * this.height / 30);
+	        this.sketch.text('Red "mine" boxes will explode when you hit them.', 2 * 8 * this.width / 14, 11 * this.height / 30);
+	        this.sketch.text('White "turret" boxes will shoot back!', 2 * 8 * this.width / 14, 12 * this.height / 30);
 	      }).bind(this);
 	    }
 	  }]);
